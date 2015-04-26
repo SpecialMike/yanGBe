@@ -11,7 +11,6 @@ SDL_Texture* texture;
 int mode = 0;
 int modeClock = 0;
 int scanlineCounter = 456;	//456 cycles to draw a scanline
-int line = 0;
 unsigned int GPUticks[] = {
 	4, 12, 8, 8, 4, 4, 8, 4, 20, 8, 8, 8, 4, 4, 8, 4,
 	4, 12, 8, 8, 4, 4, 8, 4, 12, 8, 8, 8, 4, 4, 8, 4,
@@ -67,7 +66,58 @@ void GPU::Update(){
 }
 
 void SetLCDStatus(){
+	uint8 currStatus = STAT;
+	if (!((LCDC & (1 << 7)) > 0)){	//if the LCD is disabled, then reset the line counter, LY and change to mode 1
+		scanlineCounter = 456;
+		m->writeByte(0xFF44u, 0);
+		currStatus &= 0xFCu;
+		currStatus |= 0x01u;
+		m->writeByte(0xFF41u, currStatus);
+		return;
+	}
 
+	uint8 line = LY;
+	uint8 currMode = currStatus & 0x3u;
+	uint8 newMode = 0;
+	bool modeInterruptEnabled = false;
+	if (line >= 144){
+		newMode = 0x01u;
+		currStatus &= 0xFCu;
+		currStatus |= newMode;
+		modeInterruptEnabled = ((currStatus & (1 << 4)) > 0);
+	}
+	else if(scanlineCounter >= 376){
+		newMode = 0x02u;
+		currStatus &= 0xFCu;
+		currStatus |= newMode;
+		modeInterruptEnabled = ((currStatus & (1 << 5)) > 0);
+	}
+	else if (scanlineCounter >= 204){
+		newMode = 0x03u;
+		currStatus &= 0xFCu;
+		currStatus |= newMode;
+
+	}
+	else{
+		newMode = 0x00u;
+		currStatus &= 0xFCu;
+		modeInterruptEnabled = ((currStatus & (1 << 3)) > 0);
+	}
+
+	if (modeInterruptEnabled && (mode != newMode)){
+		requestInterrupt(LCD);
+	}
+
+	if (LY == LYC){
+		currStatus &= 0xFBu;	//Set the coincidence flag
+		currStatus |= 0x04u;
+		if ((currStatus & (1 << 6)) > 0)
+			requestInterrupt(LCD);
+	}
+	else{
+		currStatus &= 0xFBu;
+	}
+	m->writeByte(0xFF41, currStatus);
 }
 
 void GPU::Step(int cycles){
@@ -81,20 +131,28 @@ void GPU::Step(int cycles){
 
 	if (scanlineCounter <= 0){	//done with this scanline, on to the next;
 		scanlineCounter = 456;
-		m->writeByte(0xFF44, LY + 1);
-		line = LY;
+		m->incrementLY();
+		uint8 line = LY;
 
 		if (line == 144){
 			requestInterrupt(VBLANK);
 		}
 
-		if (line < 153){	//VBLANK period is over, reset line to 0
+		if (line > 153){	//VBLANK period is over, reset line to 0
 			m->writeByte(0xFF44, 0);
+		}
+
+		if (line < 144){	//the current line within the drawable space, so draw it
+			uint8 currLCDC = LCDC;
+			if ((currLCDC & 0x01u) > 0)
+				drawBGLine();
+			if ((currLCDC & 0x02u) > 0)
+				drawSpriteLine();
 		}
 	}
 }
 
-unsigned int mapPalette(int colorNumber, int mode){
+unsigned int mapPalette(int colorNumber, int thisMode){
 	return colors[colorNumber];
 }
 
@@ -104,6 +162,7 @@ void drawBGLine(){
 	unsigned _int16 rowPos = 0, colPos;
 	unsigned _int16 tileAddress;
 	unsigned _int16 bgAddress = 0;
+	uint8 line = LY;
 
 	if ((LCDC & 0x20u) && (WY <= LY)){
 		yPos = LY - WY;

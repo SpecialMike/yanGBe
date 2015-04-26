@@ -4,6 +4,7 @@
 #include <SDL.h>
 
 #pragma once
+	void drawBGLine();
 class GPU
 {
 private:

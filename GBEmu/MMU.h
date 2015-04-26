@@ -40,4 +40,5 @@ public:
 	void writeByte(unsigned _int16 address, uint8 value);
 	uint8 operator[](unsigned _int16 index);
 	void incrementDIV();
+	void incrementLY();
 };

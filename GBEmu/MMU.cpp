@@ -357,7 +357,9 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 							break;
 						}
 					}
-
+				}
+				else if (address == 0xFF44){
+					io[0x44] = 0;
 				}
 				else{
 					io[address & 0x7Fu] = value;
@@ -368,6 +370,11 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 	}
 }
 
-void MMU::incrementDIV(){	//need this because any writes to 0xFF04 reset the DIV timer to 0
+//need this because any writes to 0xFF04 or 0xFF44 reset them to 0
+void MMU::incrementDIV(){	
 	io[0x04]++;
+}
+
+void MMU::incrementLY(){
+	io[0x44]++;
 }

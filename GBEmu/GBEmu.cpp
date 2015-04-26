@@ -1357,7 +1357,7 @@ void OP(uint8 code){
 		}
 		break;
 	case 211: //Illegal opcode, halt execution (0xD3u)
-		printf("Illegal OP: 0xD3u at PC: %d", PC);
+		printf("Illegal OP: 0xD3u at PC: %u", PC);
 		break;
 	case 212: //CALL NC,nn Call nn if C flag == 0
 		if (!F[FLAG_C]){
@@ -1417,7 +1417,7 @@ void OP(uint8 code){
 		}
 		break;
 	case 219: //Illegal opcode, halt execution (0xDBu)
-		printf("Illegal OP: 0xDBu at PC: %d", PC);
+		printf("Illegal OP: 0xDBu at PC: %u", PC);
 		break;
 	case 220: //CALL C,nn Call nn if C flag == 1
 		if (F[FLAG_C]){
@@ -1434,7 +1434,7 @@ void OP(uint8 code){
 		}
 		break;
 	case 221: //Illegal opcode, halt execution (0xDDu)
-		printf("Illegal OP: 0xDDu at PC: %d", PC);
+		printf("Illegal OP: 0xDDu at PC: %u", PC);
 		break;
 	case 222: //SBC n Subtract 8-bit immediate n plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - m->readByte(PC++) - ((F[FLAG_C]) ? 1 : 0);
@@ -1463,10 +1463,10 @@ void OP(uint8 code){
 		m->writeByte(m->readByte(0xFF00u + C), A);
 		break;
 	case 227: //Illegal opcode, halt execution (0xE3u)
-		printf("Illegal OP: 0xE3u at PC: %d", PC);
+		printf("Illegal OP: 0xE3u at PC: %u", PC);
 		break;
 	case 228: //Illegal opcode, halt execution (0xE4u)
-		printf("Illegal OP: 0xE4u at PC: %d", PC);
+		printf("Illegal OP: 0xE4u at PC: %u", PC);
 		break;
 	case 229: //PUSH HL Push HL onto the stack, decrement SP twice
 		SP -= 1;
@@ -1507,13 +1507,13 @@ void OP(uint8 code){
 		PC += 2;
 		break;
 	case 235: //Illegal opcode, halt execution (0xEBu)
-		printf("Illegal OP: 0xEBu at PC: %d", PC);
+		printf("Illegal OP: 0xEBu at PC: %u", PC);
 		break;
 	case 236: //Illegal opcode, halt execution (0xECu)
-		printf("Illegal OP: 0xECu at PC: %d", PC);
+		printf("Illegal OP: 0xECu at PC: %u", PC);
 		break;
 	case 237: //Illegal opcode, halt execution (0xEDu)
-		printf("Illegal OP: 0xEDu at PC: %d", PC);
+		printf("Illegal OP: 0xEDu at PC: %u", PC);
 		break;
 	case 238: //XOR n Logical XOR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= m->readByte(PC++);
@@ -1548,7 +1548,7 @@ void OP(uint8 code){
 		interruptEnabled = false;
 		break;
 	case 244: //Illegal opcode, halt execution (0xF4u)
-		printf("Illegal OP: 0xF4u at PC: %d", PC);
+		printf("Illegal OP: 0xF4u at PC: %u", PC);
 		break;
 	case 245: //PUSH AF Push AF onto the stack, decrement SP twice
 		SP -= 1;
@@ -1591,10 +1591,10 @@ break;
 		interruptEnabled = true;
 		break;
 	case 252: //Illegal opcode, halt execution (0xFCu)
-		printf("Illegal OP: 0xFCu at PC: %d", PC);
+		printf("Illegal OP: 0xFCu at PC: %u", PC);
 		break;
 	case 253: //Illegal opcode, halt execution (0xFDu)
-		printf("Illegal OP: 0xFDu at PC: %d", PC);
+		printf("Illegal OP: 0xFDu at PC: %u", PC);
 		break;
 	case 254: //CP n Compare A and 8-bit immediate n. Flags: Z - set if A == n; N - Set; H - set if no borrow from bit 4; C - Set if A < n; 
 		temp = A - m->readByte(PC++);
@@ -1616,7 +1616,7 @@ break;
 
 //each operation has two variants:
 //one that directly modifies the register 
-//the other is for modying contents of memory where a value is returned, not a pointer
+//the other is for modifying contents of memory where a value is returned, not a pointer
 
 void RLC(uint8* reg){
 	F.reset();
