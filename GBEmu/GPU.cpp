@@ -152,84 +152,95 @@ void GPU::Step(int cycles){
 	}
 }
 
-unsigned int mapPalette(int colorNumber, int thisMode){
+unsigned int mapPalette(uint8 colorNumber, uint8 palette){
 	return colors[colorNumber];
 }
 
 void drawBGLine(){
-	bool useWindow = false;
-	unsigned _int8 yPos, xPos;
-	unsigned _int16 rowPos = 0, colPos;
+	unsigned _int16 bgAddress;
 	unsigned _int16 tileAddress;
-	unsigned _int16 bgAddress = 0;
-	uint8 line = LY;
+	uint8 yPos;
+	bool isUnsigned = true;
+	bool drawWindow = false;
 
-	if ((LCDC & 0x20u) && (WY <= LY)){
-		yPos = LY - WY;
+	//Check if we are drawing the window
+	if ((LCDC & (1 << 5)) > 0 && (WY <= LY)){
+		drawWindow = true;
+	}
 
-		if (LCDC & (1 << 6)){
-			bgAddress = 0x1C00u;
-		}
-		else{
-			bgAddress = 0x1800u;
-		}
-		useWindow = true;
+	if ((LCDC & (1 << 4)) > 0){	//is the tile data signed or not
+		tileAddress = 0x8000u;
 	}
 	else{
-		yPos = SCY + LY;
+		tileAddress = 0x8800u;
+		isUnsigned = false;
+	}
 
-		if (LCDC & (1 << 3)){
-			bgAddress = 0x1C00u;
+	if (drawWindow){	//determine the address for the background data
+		if ((LCDC & (1 << 6)) > 0){
+			bgAddress = 0x9C00u;
 		}
 		else{
-			bgAddress = 0x1800u;
+			bgAddress = 0x9800u;
+		}
+	}
+	else{
+		if ((LCDC & (1 << 3)) > 0){
+			bgAddress = 0x9C00u;
+		}
+		else{
+			bgAddress = 0x9800u;
 		}
 	}
 
-	rowPos = ((unsigned _int8)(yPos/8))*32; //TODO: calculate row position
+	if (drawWindow){
+		yPos = LY - WY;
+	}
+	else{
+		yPos = SCY - LY;
+	}
 
+	//which row in the tile are we on
+	uint16 tileRow = (((uint16)(yPos / 8)) * 32);
+
+	//draw the scanline
 	for (int i = 0; i < 160; i++){
-		//draw each of the 160 pixels in the scanline
-		unsigned _int8 tileLine, data1, data2;
-		int colorBit, colorNumber;
-		unsigned _int32 color;
-
-		if (useWindow){	//if we are drawing a window pixel, adjust xPos
-			unsigned _int8 rWX = WX - 7;
-			if (i >= rWX)
-				xPos = i - rWX;
-		}
-		else
-			xPos = i + SCX;	//we are on the ith pixel after the scrollX register value
-
-		colPos = (xPos / 8);
-
-		//figure out which tile we are using
-		if (LCDC & (1 << 4)){	//tile data at 0x8800u
-			unsigned _int8 tilenumber;
-			tileAddress = 0x0u;
-			tilenumber = m->readByte(bgAddress + rowPos + colPos);
-			tileAddress = (tilenumber * 16);
+		uint8 xPos = i + SCX;
+		if (drawWindow && i >= WX)
+			xPos = i - WX;
+		uint16 tileCol = xPos / 8;
+		uint16 tileAddress = bgAddress + tileRow + tileCol;
+		//made this an int because it can either be a signed or unsigned number, so this should prevent overflow
+		_int16 tileNum;
+		if (isUnsigned){
+			tileNum = m->readByte(tileAddress);
 		}
 		else{
-			signed _int8 tilenumber;	//tile data at 0x8000u, numbers are signed
-			tileAddress = 0x800u;
-			tilenumber = m->readByte(bgAddress + rowPos + colPos);
-			tileAddress += ((tilenumber+128) * 16);
+			tileNum = (_int16)m->readByte(tileAddress);
 		}
 
-		tileLine = (yPos % 8) * 2;
+		uint16 tileLocation = tileAddress;
+		if (isUnsigned){
+			tileLocation += (tileNum * 16);
+		}
+		else{
+			tileLocation += ((tileNum + 128) * 16);
+		}
 
-		data1 = m->readByte(tileAddress + line);
-		data2 = m->readByte(tileAddress + line + 1);
+		uint8 line = yPos % 8;
+		line *= 2;
+		uint8 upperData = m->readByte(tileLocation + line);
+		uint8 lowerData = m->readByte(tileLocation + line + 1);
 
-		colorBit = ((xPos % 8) - 7) * -1;
-		colorNumber = (data2 & (1 << colorBit)) ? 0x2u : 0;
-		colorNumber |= (data1 & (1 << colorBit)) ? 1 : 0;
+		int colorBit = xPos % 8;	//which bit are we looking at in the line's data
+		colorBit -= 7;
+		colorBit *= -1;
 
-		color = mapPalette(colorNumber, 0);
+		uint8 color = ((lowerData & (1 << colorBit)) > 0) ? 0x2u : 0;	//get the color number
+		color |= ((upperData & (1 << colorBit)) > 0) ? 0x1u : 0;
+		int palette = mapPalette(color, BGP);
 
-		data[LY*160 + i] = color;
+		data[i+160*LY] = palette;
 	}
 }
 
