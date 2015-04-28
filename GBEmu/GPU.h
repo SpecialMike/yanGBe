@@ -5,6 +5,7 @@
 
 #pragma once
 	void drawBGLine();
+	void drawSpriteLine();
 class GPU
 {
 private:

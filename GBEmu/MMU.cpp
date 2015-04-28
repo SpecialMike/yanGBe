@@ -361,6 +361,11 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 				else if (address == 0xFF44){
 					io[0x44] = 0;
 				}
+				if (address == 0xFF02u){
+					io[0x02] = value;
+					if (value = 0x01u)
+						printf("%X ", io[0x01]);
+				}
 				else{
 					io[address & 0x7Fu] = value;
 				}

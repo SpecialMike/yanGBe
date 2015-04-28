@@ -51,7 +51,59 @@ bool openROM(char* file);
 void getCartInfo();
 GPU* g = new GPU();
 MMU* m;
+unsigned int next_time = 0;
 
+unsigned int time_left(void)
+{
+	unsigned int now;
+
+	now = SDL_GetTicks();
+	if (next_time <= now)
+		return 0;
+	else
+		return next_time - now;
+}
+
+void init(){
+	A = 0x1u;
+	F = 0xB0u;
+	C = 0x13u;
+	E = 0xD8u;
+	H = 0x01u;
+	L = 0x4Du;
+	SP = 0xFFFEu;
+	m->writeByte(0xFF05, 0);
+	m->writeByte(0xFF06, 0);
+	m->writeByte(0xFF07, 0);
+	m->writeByte(0xFF10, 0x80u);
+	m->writeByte(0xFF11, 0xBFu);
+	m->writeByte(0xFF12, 0xF3u);
+	m->writeByte(0xFF14, 0xBFu);
+	m->writeByte(0xFF16, 0x3Fu);
+	m->writeByte(0xFF17, 0);
+	m->writeByte(0xFF19, 0xBFu);
+	m->writeByte(0xFF1A, 0x7Fu);
+	m->writeByte(0xFF1B, 0xFFu);
+	m->writeByte(0xFF1C, 0x9Fu);
+	m->writeByte(0xFF1E, 0xBFu);
+	m->writeByte(0xFF20, 0xFFu);
+	m->writeByte(0xFF21, 0);
+	m->writeByte(0xFF22, 0);
+	m->writeByte(0xFF23, 0xBFu);
+	m->writeByte(0xFF24, 0x77u);
+	m->writeByte(0xFF25, 0xF3u);
+	m->writeByte(0xFF26, 0xF1u);
+	m->writeByte(0xFF40, 0x91u);
+	m->writeByte(0xFF42, 0);
+	m->writeByte(0xFF43, 0);
+	m->writeByte(0xFF45, 0);
+	m->writeByte(0xFF47, 0xFCu);
+	m->writeByte(0xFF48, 0xFFu);
+	m->writeByte(0xFF49, 0xFFu);
+	m->writeByte(0xFF4A, 0);
+	m->writeByte(0xFF4B, 0);
+	m->writeByte(0xFFFF, 0);
+}
 
 int main(int argc, char* argv[]){
 	if (argc != 2)
@@ -60,11 +112,20 @@ int main(int argc, char* argv[]){
 		return 1;
 	}
 	getCartInfo();
-	bool done = false;
 	m = new MMU(MMU::MBC1, 1, 1, cartROM);
-	SDL_Event event;
 	g->Reset();
-
+	init();
+	bool done = false;
+	SDL_Event event;
+	while (true){
+		MainLoop();
+		SDL_Delay(time_left());
+		next_time += 30;
+	}
+	
+	delete g;
+	delete m;
+	return 0;
 	while (!done){
 		SDL_WaitEvent(&event);
 
@@ -74,10 +135,6 @@ int main(int argc, char* argv[]){
 		}
 		g->Update();
 	}
-
-	delete g;
-	delete m;
-	return 0;
 }
 
 void serviceInterrupt(int bit){
@@ -173,6 +230,7 @@ void MainLoop(){
 		updateTimer(ticks[lastOP]);
 		g->Step(ticks[lastOP]);
 		handleInterrupts();
+		cycles += ticks[lastOP];
 	}
 	g->Update();
 }

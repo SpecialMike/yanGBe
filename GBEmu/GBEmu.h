@@ -10,6 +10,7 @@ enum interrupts{
 	VBLANK = 0, LCD, TIMER, SERIAL, JOYPAD
 };
 void requestInterrupt(interrupts i);
+void MainLoop();
 
 #define IE m->readByte(0xFFFF)
 #define IF m->readByte(0xFF0F)
@@ -24,6 +25,7 @@ void requestInterrupt(interrupts i);
 #define SCX m->readByte(0xFF43u)
 #define LY m->readByte(0xFF44u)
 #define LYC m->readByte(0xFF45u)
+#define BGP m->readByte(0xFF47u)
 #define WY m->readByte(0xFF4Au)
 #define WX m->readByte(0xFF4Bu)
 

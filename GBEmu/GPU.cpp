@@ -4,7 +4,7 @@
 
 
 
-unsigned _int32* data = new unsigned _int32[160 * 144];
+uint16 data[160][144];
 SDL_Window* window;
 SDL_Renderer* renderer;
 SDL_Texture* texture;
@@ -53,13 +53,13 @@ void GPU::Reset(){
 
 	window = SDL_CreateWindow("GBEmu", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 160, 144, 0);
 	renderer = SDL_CreateRenderer(window, -1, 0);
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STATIC, 160, 144);
-	memset(data, 0x000000u, 160 * 144 * sizeof(unsigned _int32));
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR4444, SDL_TEXTUREACCESS_STATIC, 160, 144);
+	//memset(data, 0x000000u, 160 * 144 * sizeof(unsigned _int32));
 	return;
 }
 
 void GPU::Update(){
-	SDL_UpdateTexture(texture, NULL, data, 160 * sizeof(unsigned _int32));
+	SDL_UpdateTexture(texture, NULL, data, 144 * sizeof(uint16));
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
@@ -152,8 +152,10 @@ void GPU::Step(int cycles){
 	}
 }
 
-unsigned int mapPalette(uint8 colorNumber, uint8 palette){
-	return colors[colorNumber];
+uint8 mapPalette(uint8 colorNumber, uint8 palette){
+	uint8 colorBits = palette & (0x11u << colorNumber * 2);
+	colorBits >>= colorNumber * 2;
+	return colorBits;
 }
 
 void drawBGLine(){
@@ -238,9 +240,23 @@ void drawBGLine(){
 
 		uint8 color = ((lowerData & (1 << colorBit)) > 0) ? 0x2u : 0;	//get the color number
 		color |= ((upperData & (1 << colorBit)) > 0) ? 0x1u : 0;
-		int palette = mapPalette(color, BGP);
+		uint8 palette = mapPalette(color, BGP);
 
-		data[i+160*LY] = palette;
+		//data[i][LY] = palette;
+		switch (palette){
+		case 0x00u:
+			data[i][LY] = 0xF000u;
+			break;
+		case 0x01u:
+			data[i][LY] = 0xFCCCu;
+			break;
+		case 0x02u:
+			data[i][LY] = 0xF777u;
+			break;
+		case 0x03u:
+			data[i][LY] = 0xFFFFu;
+			break;
+		}
 	}
 }
 

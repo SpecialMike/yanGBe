@@ -217,3 +217,4 @@ pip-log.txt
 
 *.gb
 *.dll
+cpu_instrs/*
