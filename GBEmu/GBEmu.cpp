@@ -3,6 +3,7 @@
 #include "stdafx.h"
 #include "GBEmu.h"
 #include "GPU.h"
+#include <sstream>
 
 #define FLAG_ZERO 7
 #define FLAG_SUB 6
@@ -203,14 +204,21 @@ void updateTimer(int cycles){
 	}
 }
 
+std::string HexDec2String(int hexIn) {
+	char hexString[4 * sizeof(int) + 1];
+	// returns decimal value of hex
+	sprintf(hexString, "%X", hexIn);
+	return std::string(hexString);
+}
 
 void MainLoop(){
 	const int cyclesPerUpdate = 69905;
 	int cycles = 0;
 
 	while (cycles < cyclesPerUpdate){
-		fout << m->readByte(PC);// << std::endl;
+		fout << HexDec2String(PC) << " ";
 		int lastOP = OP(m->readByte(PC++));
+		fout << std::endl;
 		if (lastOP == -1){
 			printf("error");
 			fout.close();
@@ -221,6 +229,49 @@ void MainLoop(){
 		cycles += lastOP;
 	}
 	g->Update();
+}
+
+//Adds reg to the accumulator (A)
+void ADD(uint8* reg){
+	uint8 val = A + (*reg);
+	//cast to int should allow correct checking
+	F.set(FLAG_HC, (((int)A) & 0xF) + ((*reg) & 0xF) > 0xF);
+	F.set(FLAG_C, (((int)A) + (*reg)) > 0xFFu);
+	A = val;
+	F.set(FLAG_ZERO, A == 0);
+	F.set(FLAG_SUB, false);
+}
+
+//Adds reg + carry flag to accumulator
+void ADC(uint8* reg){
+	uint8 cVal = ((F.test(FLAG_C)) ? 0x01u : 0x00u);
+	uint8 val = A + (*reg) + cVal;
+	F.set(FLAG_HC, (((int)A) & 0xF) + ((*reg) & 0xF) + cVal > 0xF);
+	F.set(FLAG_C, (int)A + (*reg) + cVal > 0xFF);
+	A = val;
+	F.set(FLAG_ZERO, A == 0);
+	F.set(FLAG_SUB, false);
+}
+
+//Subtracts reg from accumulator
+void SUB(uint8* reg){
+	uint8 val = A - (*reg);
+	F.set(FLAG_C, A < (*reg));
+	F.set(FLAG_HC, (A & 0xF) < ((*reg) & 0xF) );
+	A = val;
+	F.set(FLAG_ZERO, A == 0);
+	F.set(FLAG_SUB);
+}
+
+//Subtracts reg+1 from accumulator
+void SBC(uint8* reg){
+	uint8 cVal = ((F.test(FLAG_C)) ? 0x01u : 0x00u);
+	uint8 val = A - ((*reg) + cVal);
+	F.set(FLAG_C, A < ((*reg) + cVal) );
+	F.set(FLAG_HC, (A & 0xF) < ( ((*reg) & 0xF) + cVal) );
+	A = val;
+	F.set(FLAG_ZERO, A == 0);
+	F.set(FLAG_SUB);
 }
 
 int OP(uint8 code){
@@ -775,267 +826,104 @@ int OP(uint8 code){
 	case 0x7Fu: //LD A,A Load value of A into A (do nothing)
 		return 4;
 	case 0x80u: //ADD A,B Add B to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + B;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&B);
 		return 4;
 	case 0x81u: //ADD A,C Add C to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + C;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&C);
 		return 4;
 	case 0x82u: //ADD A,D Add D to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + D;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&D);
 		return 4;
 	case 0x83u: //ADD A,E Add E to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + E;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&E);
 		return 4;
 	case 0x84u: //ADD A,H Add H to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + H;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&H);
 		return 4;
 	case 0x85u: //ADD A,L Add L to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + L;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&L);
 		return 4;
 	case 0x86u: //ADD A,(HL) Add (HL) to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + m->readByte(R_HL);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		temp2 = m->readByte(R_HL);
+		ADD(&temp2);
 		return 8;
 	case 0x87u: //ADD A,A Add A to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + A;
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADD(&A);
 		return 4;
 	case 0x88u: //ADC A,B Add B + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + B + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&B);
 		return 4;
 	case 0x89u: //ADC A,C Add C + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + C + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&C);
 		return 4;
 	case 0x8Au: //ADC A,D Add D + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + D + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&D);
 		return 4;
 	case 0x8Bu: //ADC A,E Add E + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + E + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&E);
 		return 4;
 	case 0x8Cu: //ADC A,H Add H + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + H + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&H);
 		return 4;
 	case 0x8Du: //ADC A,L Add L + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + L + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&L);
 		return 4;
 	case 0x8Eu: //ADC A,(HL) Add (HL) + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + m->readByte(R_HL) + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		temp2 = m->readByte(R_HL);
+		ADC(&temp2);
 		return 8;
 	case 0x8Fu: //ADC A,A Add A + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + A + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		ADC(&A);
 		return 4;
 	case 0x90u: //SUB B Subtract B from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - B;
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SUB(&B);
 		return 4;
 	case 0x91u: //SUB C Subtract C from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - C;
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SUB(&C);
 		return 4;
 	case 0x92u: //SUB D Subtract D from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - D;
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SUB(&D);
 		return 4;
 	case 0x93u: //SUB E Subtract E from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - E;
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SUB(&E);
 		return 4;
 	case 0x94u: //SUB H Subtract H from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - H;
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SUB(&H);
 		return 4;
 	case 0x95u: //SUB L Subtract L from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - L;
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SUB(&L);
 		return 4;
 	case 0x96u: //SUB (HL) Subtract (HL) from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - m->readByte(R_HL);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		temp2 = m->readByte(R_HL);
+		SUB(&temp2);
 		return 8;
 	case 0x97u: //SUB A Subtract A from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		A = 0;
-		F.reset(FLAG_HC);
-		F.reset(FLAG_C);
-		F.set(FLAG_ZERO, true);
-		F.set(FLAG_SUB, true);
+		SUB(&A);
 		return 4;
 	case 0x98u: //SBC B Subtract B plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - B - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SBC(&B);
 		return 4;
 	case 0x99u: //SBC C Subtract C plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - C - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SBC(&C);
 		return 4;
 	case 0x9Au: //SBC D Subtract D plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - D - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SBC(&D);
 		return 4;
 	case 0x9Bu: //SBC E Subtract E plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - E - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SBC(&E);
 		return 4;
 	case 0x9Cu: //SBC H Subtract H plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - H - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SBC(&H);
 		return 4;
 	case 0x9Du: //SBC L Subtract L plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - L - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		SBC(&L);
 		return 4;
 	case 0x9Eu: //SBC A Subtract (HL) plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - m->readByte(R_HL) - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
-		F.set(FLAG_SUB, true);
+		temp2 = m->readByte(R_HL);
+		SBC(&temp2);
 		return 8;
 	case 0x9Fu: //SBC A Subtract A plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		if (F[FLAG_C]){
-			F.reset(FLAG_ZERO);
-			F.set(FLAG_SUB, true);
-			F.set(FLAG_HC, true);
-			F.set(FLAG_C, true);
-			A = 0xFFu;
-		}
-		else{
-			F.reset(FLAG_HC);
-			F.reset(FLAG_C);
-			F.set(FLAG_SUB);
-			F.set(FLAG_ZERO);
-			A = 0;
-		}
+		SBC(&A);
 		return 4;
 	case 0xA0u: //AND B Logical AND B and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= B;
@@ -1287,6 +1175,10 @@ int OP(uint8 code){
 		//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
 		nn = m->readByte(PC++);
 		nn |= m->readByte(PC++) << 8;
+		if (nn == 0xDEF8){
+			//debugging
+			PC = nn;
+		}
 		PC = nn;
 		return 16;
 	case 0xC4u: //CALL NZ,nn Call nn if Z flag == 0
@@ -1447,12 +1339,14 @@ int OP(uint8 code){
 		m->writeByte(SP, E);
 		return 16;
 	case 0xD6u: //SUB n Subtract 8-bit immediate n from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - m->readByte(PC++);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
+	{
+		uint8 n = m->readByte(PC++);
+		F.set(FLAG_HC, (A & 0xFu) < (n & 0xFu));
+		F.set(FLAG_C, A < n);
+		A = (A-n) & 0xFFu;
+		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, true);
+	}
 		return 8;
 	case 0xD7u: //RST 10H Push PC onto the stack, jump to 0x0010u
 		SP -= 1;
