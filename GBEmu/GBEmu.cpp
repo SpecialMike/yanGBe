@@ -347,7 +347,7 @@ int OP(uint8 code){
 		F.set(FLAG_HC, false);
 		return 4;
 	case 0x18u: //JR n Jump to PC+n where n is an 8-bit immediate
-		PC += (1 + m->readByte(PC++));
+		PC += ((_int8)m->readByte(PC++));
 		return 12;
 	case 0x19u: //ADD HL,DE Add DE to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		temp = R_HL + R_DE;
@@ -390,7 +390,7 @@ int OP(uint8 code){
 		return 4;
 	case 0x20u: //JR NZ,n Jump to PC+n if Z flag == 0
 		if (!F[FLAG_ZERO]){
-			PC += (1 + m->readByte(PC++));
+			PC += ((_int8)m->readByte(PC++));
 			return 12;
 		}
 		else{
@@ -453,7 +453,7 @@ int OP(uint8 code){
 		return 4;
 	case 0x28u: //JR Z,n Jump to PC+n if Z flag == 1
 		if (F[FLAG_ZERO]){
-			PC += (1 + m->readByte(PC++));
+			PC += ((_int8) m->readByte(PC++));
 			return 12;
 		}
 		else{
@@ -469,7 +469,7 @@ int OP(uint8 code){
 		F.set(FLAG_SUB, false);
 		return 8;
 	case 0x2Au: //LDI A,(HL) Load value at (HL) into A, increment HL
-		A = m->readByte(R_DE);
+		A = m->readByte(R_HL);
 		temp = R_HL + 1;
 		H = temp >> 8 & 0xFFu;
 		L = temp & 0xFFu;
@@ -501,7 +501,7 @@ int OP(uint8 code){
 		return 4;
 	case 0x30u: //JR NC,n Jump to PC+n if C flag == 0
 		if (!F[FLAG_C]){
-			PC += (m->readByte(PC++));
+			PC += ((_int8)m->readByte(PC++));
 			return 12;
 		}
 		else{
@@ -545,7 +545,7 @@ int OP(uint8 code){
 		return 4;
 	case 0x38u: //JR C,n Jump to PC+n if C flag == 1
 		if (F[FLAG_C]){
-			PC += (m->readByte(PC++));
+			PC += ((_int8)m->readByte(PC++));
 			return 12;
 		}
 		else{
@@ -1559,12 +1559,15 @@ int OP(uint8 code){
 		PC = 0x20u;
 		return 16;
 	case 0xE8u: //ADD SP,n Add 8-bit immediate to SP.Flags:Z - reset; N - reset; H,C - set or reset according to operation
-		temp2 = m->readByte(PC++);
-		temp = SP + temp2;
+	{
+		_int8 n = (_int8)m->readByte(PC++);
+		uint16 val = (SP + n) & 0xFFFF;
 		F.reset();
-		F.set(FLAG_HC, ((SP ^ temp2 ^ (temp & 0xFFFFu)) & 0x10u) == 0x10u);
-		F.set(FLAG_C, ((SP ^ temp2 ^ (temp & 0xFFFFu)) & 0x100u) == 0x100u);
-		SP = temp & 0xFFFFu;
+		unsigned int test = SP + n;
+		F.set(FLAG_HC, ((SP & 0xF) + (n & 0xF)) > 0xF);
+		F.set(FLAG_C, test > 0xFFFF);
+		SP = val;
+	}
 		return 16;
 	case 0xE9u: //JP HL Jump to address in HL.
 		PC = R_HL;
@@ -1640,13 +1643,17 @@ int OP(uint8 code){
 		PC = 0x30u;
 		return 16;
 	case 0xF8u: //LDHL SP,n Load value SP + n into HL where n is an 8-bit immediate. flags: Z,N - reset; H,C set according to operation
-		temp = m->readByte(PC++) + SP;
-		L = temp & 0xFFu;
-		H = (temp >> 8) & 0xFFu;
-		temp = SP ^ temp ^ R_HL;
+	{
+		_int8 n = (_int8)m->readByte(PC++);
+		nn = (n + SP) & 0xFFFFu;
+		L = nn & 0xFFu;
+		H = (nn >> 8) & 0xFFu;
+
+		unsigned int test = n + SP;
 		F.reset();
-		F.set(FLAG_C, (temp & 0x100u) == 0x100u);
-		F.set(FLAG_HC, (temp & 0x10u) == 0x10u);
+		F.set(FLAG_C, test > 0xFFFF);
+		F.set(FLAG_HC, ((SP & 0xF) + (n & 0xF)) > 0xF);
+	}
 		return 12;
 	case 0xF9u: //LD SP,HL Load value at HL into SP
 		SP = R_HL;
