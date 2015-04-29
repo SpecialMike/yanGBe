@@ -24,34 +24,17 @@ unsigned int clockM = 0;
 unsigned int clockT = 0;
 bool interruptEnabled = true;
 bool skipPCIncrement = false;
-int ticks[] = {
-	4, 12, 8, 8, 4, 4, 8, 4, 20, 8, 8, 8, 4, 4, 8, 4,
-	4, 12, 8, 8, 4, 4, 8, 4, 12, 8, 8, 8, 4, 4, 8, 4,
-	8, 12, 8, 8, 4, 4, 8, 4, 8, 8, 8, 8, 4, 4, 8, 4,
-	8, 12, 8, 8, 12, 12, 12, 4, 8, 8, 8, 8, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	8, 8, 8, 8, 8, 8, 4, 8, 4, 4, 4, 4, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	4, 4, 4, 4, 4, 4, 8, 4, 4, 4, 4, 4, 4, 4, 8, 4,
-	8, 12, 12, 16, 12, 16, 8, 16, 8, 16, 12, 0, 12, 24, 8, 16,
-	8, 12, 12, 4, 12, 16, 8, 16, 8, 16, 12, 4, 12, 4, 8, 16,
-	12, 12, 8, 4, 4, 16, 8, 16, 16, 4, 16, 4, 4, 4, 8, 16,
-	12, 12, 8, 4, 4, 16, 8, 16, 12, 8, 16, 4, 0, 4, 8, 16 
-};
 
 void handleStop();
 void handleHalt();
-void OP(uint8 code);
+int OP(uint8 code);
 void CB(uint8 code);
 bool openROM(char* file);
 void getCartInfo();
 GPU* g = new GPU();
 MMU* m;
 unsigned int next_time = 0;
+ofstream fout;
 
 unsigned int time_left(void)
 {
@@ -111,6 +94,7 @@ int main(int argc, char* argv[]){
 	if (!openROM(argv[1])){
 		return 1;
 	}
+	fout.open("output.txt");
 	getCartInfo();
 	m = new MMU(MMU::MBC1, 1, 1, cartROM);
 	g->Reset();
@@ -122,7 +106,7 @@ int main(int argc, char* argv[]){
 		SDL_Delay(time_left());
 		next_time += 30;
 	}
-	
+	fout.close();
 	delete g;
 	delete m;
 	return 0;
@@ -225,220 +209,225 @@ void MainLoop(){
 	int cycles = 0;
 
 	while (cycles < cyclesPerUpdate){
-		uint8 lastOP = m->readByte(PC++);
-		OP(lastOP);
-		updateTimer(ticks[lastOP]);
-		g->Step(ticks[lastOP]);
+		fout << m->readByte(PC);// << std::endl;
+		int lastOP = OP(m->readByte(PC++));
+		if (lastOP == -1){
+			printf("error");
+			fout.close();
+		}
+		updateTimer(lastOP);
+		g->Step(lastOP);
 		handleInterrupts();
-		cycles += ticks[lastOP];
+		cycles += lastOP;
 	}
 	g->Update();
 }
 
-void OP(uint8 code){
+int OP(uint8 code){
 	uint16 nn = 0;
 	uint32 temp = 0;
 	uint8 temp2 = 0;
 	switch (code){
-	case 0: //NOP (do nothing)
-		break;
-	case 1: //LD BC, nn Load a 16-bit immediate nn into BC
+	case 0x00u: //NOP (do nothing)
+		return 4;
+	case 0x01u: //LD BC, nn Load a 16-bit immediate nn into BC
 		C = m->readByte(PC++);
 		B = m->readByte(PC++);
-		break;
-	case 2: //LD (BC), A Load A into (BC)
+		return 12;
+	case 0x02u: //LD (BC), A Load A into (BC)
 		m->writeByte(R_BC, A);
-		break;
-	case 3: //INC BC Increment BC
+		return 8;
+	case 0x03u: //INC BC Increment BC
 		temp = R_BC + 1;
 		B = temp >> 8 & 0xFFu;
 		C = temp & 0xFFu;
-		break;
-	case 4: //INC B Increment B. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x04u: //INC B Increment B. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		B += 1;
 		F.set(FLAG_ZERO, B == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (B & 0xFu) == 0);
-		break;
-	case 5: //DEC B Decrement B. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x05u: //DEC B Decrement B. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		B -= 1;
 		F.set(FLAG_ZERO, B == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (B & 0xFu) == 0xFu);
-		break;
-	case 6: //LD B,n Load an 8-bit immediate n into B
+		return 4;
+	case 0x06u: //LD B,n Load an 8-bit immediate n into B
 		B = m->readByte(PC++);
-		break;
-	case 7: //RLCA Rotate A left. Flags: set Z if zero, N and H reset, C contains the old bit 7
+		return 8;
+	case 0x07u: //RLCA Rotate A left. Flags: set Z if zero, N and H reset, C contains the old bit 7
 		F.set(FLAG_C, A > 0x7Fu);
 		A = ((A << 1) & 0xFFu) | (A >> 7);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, false);
-		break;
-	case 8: //LD (nn),SP Load value at SP into 16-bit immediate address (nn)
+		return 4;
+	case 0x08u: //LD (nn),SP Load value at SP into 16-bit immediate address (nn)
 		nn = m->readByte(PC++);
 		nn |= (m->readByte(PC++) << 8);
 		m->writeByte(nn, SP & 0xFFu);
 		m->writeByte(nn + 1, SP >> 8);
-		break;
-	case 9: //ADD HL,BC Add BC to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
+		return 20;
+	case 0x09u: //ADD HL,BC Add BC to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		temp = R_HL + R_BC;
 		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
 		F.set(FLAG_C, (temp > 0xFFFFu));
 		L = temp & 0xFFu;
 		H = temp >> 8 & 0xFFu;
 		F.set(FLAG_SUB, false);
-		break;
-	case 10: //LD A,(BC) load value at (BC) into A
+		return 8;
+	case 0x0Au: //LD A,(BC) load value at (BC) into A
 		A = m->readByte(R_BC);
-		break;
-	case 11: //DEC BC Decrement BC
+		return 8;
+	case 0x0Bu: //DEC BC Decrement BC
 		temp = R_BC - 1;
 		B = temp >> 8;
 		C = temp & 0xFFu;
-		break;
-	case 12: //INC C Increment C. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x0Cu: //INC C Increment C. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		C += 1;
 		F.set(FLAG_ZERO, C == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (C & 0xFu) == 0);
-		break;
-	case 13: //DEC C Decrement C. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x0Du: //DEC C Decrement C. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		C -= 1;
 		F.set(FLAG_ZERO, C == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (C & 0xFu) == 0xFu);
-		break;
-	case 14: //LD C,n Load an 8-bit immediate n into C
+		return 4;
+	case 0x0Eu: //LD C,n Load an 8-bit immediate n into C
 		C = m->readByte(PC++);
-		break;
-	case 15: //RRCA Rotate A right. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0;
+		return 8;
+	case 0x0Fu: //RRCA Rotate A right. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0;
 		F.set(FLAG_C, A & 0x1u);
 		A = (A >> 1) | ((A & 0x1u) << 7);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, false);
-		break;
-	case 16: //STOP Halt CPU and LCD display until button pressed. Check for additional 0x00u after the opcode
+		return 4;
+	case 0x10u: //STOP Halt CPU and LCD display until button pressed. Check for additional 0x00u after the opcode
 		handleStop();
-		break;
-	case 17: //LD DE,nn Load a 16-bit immediate nn into DE
+		return 4;
+	case 0x11u: //LD DE,nn Load a 16-bit immediate nn into DE
 		E = m->readByte(PC++);
 		D = m->readByte(PC++);
-		break;
-	case 18: //LD (DE),A Load value at A into (DE)
+		return 12;
+	case 0x12u: //LD (DE),A Load value at A into (DE)
 		m->writeByte(R_DE, A);
-		break;
-	case 19: //INC DE Increment DE
+		return 8;
+	case 0x13u: //INC DE Increment DE
 		temp = R_DE + 1;
 		D = temp >> 8 & 0xFFu;
 		E = temp & 0xFFu;
-		break;
-	case 20: //INC D Increment D. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x14u: //INC D Increment D. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		D += 1;
 		F.set(FLAG_ZERO, D == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (D & 0xFu) == 0);
-		break;
-	case 21: //DEC D Decrement D. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x15u: //DEC D Decrement D. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		D -= 1;
 		F.set(FLAG_ZERO, D == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (D & 0xFu) == 0xFu);
-		break;
-	case 22: //LD D,n Load an 8-bit immediate n into D
+		return 4;
+	case 0x16u: //LD D,n Load an 8-bit immediate n into D
 		D = m->readByte(PC++);
-		break;
-	case 23: //RLA Rotate A left through Carry Flag. Flags: Z - set if result is zero; N,H - reset; C - contains old bit 7
+		return 8;
+	case 0x17u: //RLA Rotate A left through Carry Flag. Flags: Z - set if result is zero; N,H - reset; C - contains old bit 7
 		temp = (F[FLAG_C]) ? 1 : 0; //old carry to go to A's bit one
 		F.set(FLAG_C, A > 0x7Fu);
 		A = ((A << 1) & 0xFFu) | (temp & 0x1u);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, false);
-		break;
-	case 24: //JR n Jump to PC+n where n is an 8-bit immediate
+		return 4;
+	case 0x18u: //JR n Jump to PC+n where n is an 8-bit immediate
 		PC += (1 + m->readByte(PC++));
-		break;
-	case 25: //ADD HL,DE Add DE to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
+		return 12;
+	case 0x19u: //ADD HL,DE Add DE to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		temp = R_HL + R_DE;
 		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
 		F.set(FLAG_C, (temp > 0xFFFFu));
 		L = temp & 0xFFu;
 		H = temp >> 8 & 0xFFu;
 		F.set(FLAG_SUB, false);
-		break;
-	case 26: //LD A,(DE) Load value at (DE) to A
+		return 8;
+	case 0x1Au: //LD A,(DE) Load value at (DE) to A
 		A = m->readByte(R_DE);
-		break;
-	case 27: //DEC DE Decrement DE
+		return 8;
+	case 0x1Bu: //DEC DE Decrement DE
 		temp = R_DE - 1;
 		D = temp >> 8;
 		E = temp & 0xFFu;
-		break;
-	case 28: //INC E Increment E. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x1Cu: //INC E Increment E. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		E += 1;
 		F.set(FLAG_ZERO, E == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (E & 0xFu) == 0);
-		break;
-	case 29: //DEC E Decrement E. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x1Du: //DEC E Decrement E. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		E -= 1;
 		F.set(FLAG_ZERO, E == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (E & 0xFu) == 0xFu);
-		break;
-	case 30: //LD E,n Load an 8-bit immediate n into E
+		return 4;
+	case 0x1Eu: //LD E,n Load an 8-bit immediate n into E
 		E = m->readByte(PC++);
-		break;
-	case 31: //RRA Rotate A right through Carry flag. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0
+		return 8;
+	case 0x1Fu: //RRA Rotate A right through Carry flag. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0
 		temp = (F[FLAG_C]) ? 0x80u : 0; //old carry to go to A's bit seven
 		F.set(FLAG_C, A & 0x01u);
 		A = ((A >> 1) & 0x7Fu) | temp;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, false);
-		break;
-	case 32: //JR NZ,n Jump to PC+n if Z flag == 0
+		return 4;
+	case 0x20u: //JR NZ,n Jump to PC+n if Z flag == 0
 		if (!F[FLAG_ZERO]){
 			PC += (1 + m->readByte(PC++));
+			return 12;
 		}
 		else{
 			PC++;
+			return 8;
 		}
-		break;
-	case 33: //LD HL,nn Load a 16-bit immediate nn into HL
+	case 0x21u: //LD HL,nn Load a 16-bit immediate nn into HL
 		L = m->readByte(PC++);
 		H = m->readByte(PC++);
-		break;
-	case 34: //LDI (HL),A Load value at A into (HL), increment HL
+		return 12;
+	case 0x22u: //LDI (HL),A Load value at A into (HL), increment HL
 		m->writeByte(R_HL, A);
 		temp = R_HL + 1;
 		H = temp >> 8 & 0xFFu;
 		L = temp & 0xFFu;
-		break;
-	case 35: //INC HL Increment HL
+		return 8;
+	case 0x23u: //INC HL Increment HL
 		temp = R_HL + 1;
 		H = temp >> 8 & 0xFFu;
 		L = temp & 0xFFu;
-		break;
-	case 36: //INC H Increment H. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x24u: //INC H Increment H. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		H += 1;
 		F.set(FLAG_ZERO, H == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (H & 0xFu) == 0);
-		break;
-	case 37: //DEC H Decrement H. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x25u: //DEC H Decrement H. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		H -= 1;
 		F.set(FLAG_ZERO, H == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (H & 0xFu) == 0xFu);
-		break;
-	case 38: //LD H,n Load an 8-bit immediate n into H
+		return 4;
+	case 0x26u: //LD H,n Load an 8-bit immediate n into H
 		H = m->readByte(PC++);
-		break;
-	case 39: //DAA Decimal adjust A. Flags:Z - set if A is zero; H - reset; C - set or reset, depending on operation
+		return 8;
+	case 0x27u: //DAA Decimal adjust A. Flags:Z - set if A is zero; H - reset; C - set or reset, depending on operation
 		if (!F[FLAG_SUB]){
 			if (F[FLAG_C] || A > 0x99u){
 				A = (A + 0x60u) & 0xFFu;
@@ -461,575 +450,578 @@ void OP(uint8 code){
 			F.set(FLAG_HC, false);
 		}
 		F.set(FLAG_ZERO, A == 0);
-		break;
-	case 40: //JR Z,n Jump to PC+n if Z flag == 1
+		return 4;
+	case 0x28u: //JR Z,n Jump to PC+n if Z flag == 1
 		if (F[FLAG_ZERO]){
 			PC += (1 + m->readByte(PC++));
+			return 12;
 		}
 		else{
 			PC++;
+			return 8;
 		}
-		break;
-	case 41: //ADD HL,HL Add HL to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
+	case 0x29u: //ADD HL,HL Add HL to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		temp = R_HL + R_HL;
 		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
 		F.set(FLAG_C, (temp > 0xFFFFu));
 		L = temp & 0xFFu;
 		H = temp >> 8 & 0xFFu;
 		F.set(FLAG_SUB, false);
-		break;
-	case 42: //LDI A,(HL) Load value at (HL) into A, increment HL
+		return 8;
+	case 0x2Au: //LDI A,(HL) Load value at (HL) into A, increment HL
 		A = m->readByte(R_DE);
 		temp = R_HL + 1;
 		H = temp >> 8 & 0xFFu;
 		L = temp & 0xFFu;
-		break;
-	case 43: //DEC HL Decrement HL
+		return 8;
+	case 0x2Bu: //DEC HL Decrement HL
 		temp = R_DE - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
-		break;
-	case 44: //INC L Increment L. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x2Cu: //INC L Increment L. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		L += 1;
 		F.set(FLAG_ZERO, L == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (L & 0xFu) == 0);
-		break;
-	case 45: //DEC L Decrement L. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x2Du: //DEC L Decrement L. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		L -= 1;
 		F.set(FLAG_ZERO, L == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (L & 0xFu) == 0xFu);
-		break;
-	case 46: //LD L,n Load an 8-bit immediate n into L
+		return 4;
+	case 0x2Eu: //LD L,n Load an 8-bit immediate n into L
 		L = m->readByte(PC++);
-		break;
-	case 47: //CPL Compliment A (flip all bits). Flags:N,H - set
+		return 8;
+	case 0x2Fu: //CPL Compliment A (flip all bits). Flags:N,H - set
 		A = ~A;
 		F.set(FLAG_HC, true);
 		F.set(FLAG_SUB, true);
-		break;
-	case 48: //JR NC,n Jump to PC+n if C flag == 0
+		return 4;
+	case 0x30u: //JR NC,n Jump to PC+n if C flag == 0
 		if (!F[FLAG_C]){
 			PC += (m->readByte(PC++));
+			return 12;
 		}
 		else{
 			PC++;
+			return 8;
 		}
-		break;
-	case 49: //LD SP,nn Load a 16-bit immediate nn into SP
+	case 0x31u: //LD SP,nn Load a 16-bit immediate nn into SP
 		//SP = m->readByte(PC++) | (m->readByte(PC++) << 8);
 		nn = m->readByte(PC++);
 		nn |= m->readByte(PC++) << 8;
 		SP = nn;
-		break;
-	case 50: //LDD (HL),A Put A into (HL), decrement HL
+		return 12;
+	case 0x32u: //LDD (HL),A Put A into (HL), decrement HL
 		m->writeByte(R_HL, A);
 		temp = R_DE - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
-		break;
-	case 51: //INC SP Increment SP
+		return 8;
+	case 0x33u: //INC SP Increment SP
 		SP++;
-		break;
-	case 52: //INC (HL) Increment (HL). Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x34u: //INC (HL) Increment (HL). Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		m->writeByte(R_HL, m->readByte(R_HL) + 1);
 		F.set(FLAG_ZERO, m->readByte(R_HL) == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (m->readByte(R_HL) & 0xFu) == 0);
-		break;
-	case 53: //DEC (HL) Decrement (HL). Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
-		m->writeByte(m->readByte(R_HL), m->readByte(R_HL) - 1);
+		return 12;
+	case 0x35u: //DEC (HL) Decrement (HL). Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		m->writeByte(R_HL, m->readByte(R_HL) - 1);
 		F.set(FLAG_ZERO, m->readByte(R_HL) == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (m->readByte(R_HL) & 0xFu) == 0xFu);
-		break;
-	case 54: //LD (HL),n Load an 8-bit immediate n into (HL)
+		return 12;
+	case 0x36u: //LD (HL),n Load an 8-bit immediate n into (HL)
 		m->writeByte(R_HL, m->readByte(PC++));
-		break;
-	case 55: //SCF Set carry flag. Flags:N,H - reset; C - set.
+		return 12;
+	case 0x37u: //SCF Set carry flag. Flags:N,H - reset; C - set.
 		F.set(FLAG_C, true);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, false);
-		break;
-	case 56: //JR C,n Jump to PC+n if C flag == 1
+		return 4;
+	case 0x38u: //JR C,n Jump to PC+n if C flag == 1
 		if (F[FLAG_C]){
 			PC += (m->readByte(PC++));
+			return 12;
 		}
 		else{
 			PC++;
+			return 8;
 		}
-		break;
-	case 57: //ADD HL,SP Add SP to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
+	case 0x39u: //ADD HL,SP Add SP to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		temp = R_HL + SP;
 		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
 		F.set(FLAG_C, (temp > 0xFFFFu));
 		L = temp & 0xFFu;
 		H = temp >> 8 & 0xFFu;
 		F.set(FLAG_SUB, false);
-		break;
-	case 58: //LDD A,(HL) Put value at (HL) into A, decrement HL
+		return 8;
+	case 0x3Au: //LDD A,(HL) Put value at (HL) into A, decrement HL
 		A = m->readByte(R_HL);
 		temp = R_DE - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
-		break;
-	case 59: //DEC SP Decrement SP
+		return 8;
+	case 0x3Bu: //DEC SP Decrement SP
 		SP--;
-		break;
-	case 60: //INC A Increment A. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
+		return 8;
+	case 0x3Cu: //INC A Increment A. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 		A += 1;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
 		F.set(FLAG_HC, (A & 0xFu) == 0);
-		break;
-	case 61: //DEC A Decrement A. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
+		return 4;
+	case 0x3Du: //DEC A Decrement A. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		A -= 1;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, true);
 		F.set(FLAG_HC, (A & 0xFu) == 0xFu);
-		break;
-	case 62: //LD A,n Load 8-bit immediate n into A
+		return 4;
+	case 0x3Eu: //LD A,n Load 8-bit immediate n into A
 		A = m->readByte(PC++);
-		break;
-	case 63: //CCF Complement the carry flag.Flags:N,H- reset; C-complemented
+		return 8;
+	case 0x3Fu: //CCF Complement the carry flag.Flags:N,H- reset; C-complemented
 		F.set(FLAG_C, !F[FLAG_C]);
 		F.reset(FLAG_SUB);
 		F.reset(FLAG_HC);
-		break;
-	case 64: //LD B,B Load value at B into B (do nothing)
-		break;
-	case 65: //LD B,C Load value at C into B
+		return 4;
+	case 0x40u: //LD B,B Load value at B into B (do nothing)
+		return 4;
+	case 0x41u: //LD B,C Load value at C into B
 		B = C;
-		break;
-	case 66: //LD B,D Load value at D into B
+		return 4;
+	case 0x42u: //LD B,D Load value at D into B
 		B = D;
-		break;
-	case 67: //LD B,E Load value at E into B
+		return 4;
+	case 0x43u: //LD B,E Load value at E into B
 		B = E;
-		break;
-	case 68: //LD B,H Load value at H into B
+		return 4;
+	case 0x44u: //LD B,H Load value at H into B
 		B = H;
-		break;
-	case 69: //LD B,L Load value at L into B
+		return 4;
+	case 0x45u: //LD B,L Load value at L into B
 		B = L;
-		break;
-	case 70: //LD B,(HL) Load value at (HL) into B
+		return 4;
+	case 0x46u: //LD B,(HL) Load value at (HL) into B
 		B = m->readByte(R_HL);
-		break;
-	case 71: //LD B,A Load value at A into B
+		return 8;
+	case 0x47u: //LD B,A Load value at A into B
 		B = A;
-		break;
-	case 72: //LD C,B Load value at B into C
+		return 4;
+	case 0x48u: //LD C,B Load value at B into C
 		C = B;
-		break;
-	case 73: //LD C,C Load value at C into C (do nothing)
-		break;
-	case 74: //LD C,D Load value at D into C
+		return 4;
+	case 0x49u: //LD C,C Load value at C into C (do nothing)
+		return 4;
+	case 0x4A4u: //LD C,D Load value at D into C
 		C = D;
-		break;
-	case 75: //LD C,E Load value at E into C
+		return 4;
+	case 0x4Bu: //LD C,E Load value at E into C
 		C = E;
-		break;
-	case 76: //LD C,H Load value at H into C
+		return 4;
+	case 0x4Cu: //LD C,H Load value at H into C
 		C = H;
-		break;
-	case 77: //LD C,L Load value at L into C
+		return 4;
+	case 0x4Du: //LD C,L Load value at L into C
 		C = L;
-		break;
-	case 78: //LD C,(HL) Load value at (HL) into C
+		return 4;
+	case 0x4Eu: //LD C,(HL) Load value at (HL) into C
 		C = m->readByte(R_HL);
-		break;
-	case 79: //LD C,A Load value at A into C
+		return 8;
+	case 0x4Fu: //LD C,A Load value at A into C
 		C = A;
-		break;
-	case 80: //LD D,B Load value at B into D
+		return 4;
+	case 0x50u: //LD D,B Load value at B into D
 		D = B;
-		break;
-	case 81: //LD D,C Load value at C into D
+		return 4;
+	case 0x51u: //LD D,C Load value at C into D
 		D = C;
-		break;
-	case 82: //LD D,D Load value at D into D (do nothing)
-		break;
-	case 83: //LD D,E Load value at E into D
+		return 4;
+	case 0x52u: //LD D,D Load value at D into D (do nothing)
+		return 4;
+	case 0x53u: //LD D,E Load value at E into D
 		D = E;
-		break;
-	case 84: //LD D,H Load value at H into D
+		return 4;
+	case 0x54u: //LD D,H Load value at H into D
 		D = H;
-		break;
-	case 85: //LD D,L Load value at L into D
+		return 4;
+	case 0x55u: //LD D,L Load value at L into D
 		D = L;
-		break;
-	case 86: //LD D,(HL) Load value at (HL) into D
+		return 4;
+	case 0x56u: //LD D,(HL) Load value at (HL) into D
 		D = m->readByte(R_HL);
-		break;
-	case 87: //LD D,A Load value at A into D
+		return 8;
+	case 0x57u: //LD D,A Load value at A into D
 		D = A;
-		break;
-	case 88: //LD E,B Load value at B into E
+		return 4;
+	case 0x58u: //LD E,B Load value at B into E
 		E = B;
-		break;
-	case 89: //LD E,C Load value at C into E
+		return 4;
+	case 0x59u: //LD E,C Load value at C into E
 		E = C;
-		break;
-	case 90: //LD E,D Load value at D into E
+		return 4;
+	case 0x5Au: //LD E,D Load value at D into E
 		E = D;
-		break;
-	case 91: //LD E,E Load value at E into E (do nothing)
-		break;
-	case 92: //LD E,H Load value at H into E
+		return 4;
+	case 0x5Bu: //LD E,E Load value at E into E (do nothing)
+		return 4;
+	case 0x5Cu: //LD E,H Load value at H into E
 		E = H;
-		break;
-	case 93: //LD E,L Load value at L into E
+		return 4;
+	case 0x5Du: //LD E,L Load value at L into E
 		E = L;
-		break;
-	case 94: //LD E,(HL) Load value at (HL) into E
+		return 4;
+	case 0x5Eu: //LD E,(HL) Load value at (HL) into E
 		E = m->readByte(R_HL);
-		break;
-	case 95: //LD E,A Load value at A into E
+		return 8;
+	case 0x5Fu: //LD E,A Load value at A into E
 		E = A;
-		break;
-	case 96: //LD H,B Load value at B into H
+		return 4;
+	case 0x60u: //LD H,B Load value at B into H
 		H = B;
-		break;
-	case 97: //LD H,C Load value at C into H
+		return 4;
+	case 0x61u: //LD H,C Load value at C into H
 		H = C;
-		break;
-	case 98: //LD H,D Load value at D into H
+		return 4;
+	case 0x62u: //LD H,D Load value at D into H
 		H = D;
-		break;
-	case 99: //LD H,E Load value at E into H
+		return 4;
+	case 0x63u: //LD H,E Load value at E into H
 		H = E;
-		break;
-	case 100: //LD H,H Load value at H into H (do nothing)
-		break;
-	case 101: //LD H,L Load value at L into H
+		return 4;
+	case 0x64u: //LD H,H Load value at H into H (do nothing)
+		return 4;
+	case 0x65u: //LD H,L Load value at L into H
 		H = L;
-		break;
-	case 102: //LD H,(HL) Load value at (HL) into H
+		return 4;
+	case 0x66u: //LD H,(HL) Load value at (HL) into H
 		H = m->readByte(R_HL);
-		break;
-	case 103: //LD H,A Load value at A into H
+		return 8;
+	case 0x67u: //LD H,A Load value at A into H
 		H = A;
-		break;
-	case 104: //LD L,B Load value at B into L
+		return 4;
+	case 0x68u: //LD L,B Load value at B into L
 		L = B;
-		break;
-	case 105: //LD L,C Load value at C into L
+		return 4;
+	case 0x69u: //LD L,C Load value at C into L
 		L = C;
-		break;
-	case 106: //LD L,D Load value at D into L
+		return 4;
+	case 0x6Au: //LD L,D Load value at D into L
 		L = D;
-		break;
-	case 107: //LD L,E Load value at E into L
+		return 4;
+	case 0x6Bu: //LD L,E Load value at E into L
 		L = E;
-		break;
-	case 108: //LD L,H Load value at H into L
+		return 4;
+	case 0x6Cu: //LD L,H Load value at H into L
 		L = H;
-		break;
-	case 109: //LD L,L Load value at L into L (do nothing)
-		break;
-	case 110: //LD L,(HL) Load value at (HL) into L
+		return 4;
+	case 0x6Du: //LD L,L Load value at L into L (do nothing)
+		return 4;
+	case 0x6Eu: //LD L,(HL) Load value at (HL) into L
 		L = m->readByte(R_HL);
-		break;
-	case 111: //LD L,A Load value at A into L
+		return 8;
+	case 0x6Fu: //LD L,A Load value at A into L
 		L = A;
-		break;
-	case 112: //LD (HL),B Load value at B into (HL)
-		m->writeByte(m->readByte(R_HL), B);
-		break;
-	case 113: //LD (HL),C Load value at C into (HL)
-		m->writeByte(m->readByte(R_HL), C);
-		break;
-	case 114: //LD (HL),D Load value at D into (HL)
-		m->writeByte(m->readByte(R_HL), D);
-		break;
-	case 115: //LD (HL),E Load value at E into (HL)
-		m->writeByte(m->readByte(R_HL), E);
-		break;
-	case 116: //LD (HL),H Load value at H into (HL)
-		m->writeByte(m->readByte(R_HL), H);
-		break;
-	case 117: //LD (HL),L Load value at L into (HL)
-		m->writeByte(m->readByte(R_HL), L);
-		break;
-	case 118: //HALT Power down CPU until an interrupt occurs.
+		return 4;
+	case 0x70u: //LD (HL),B Load value at B into (HL)
+		m->writeByte(R_HL, B);
+		return 8;
+	case 0x71u: //LD (HL),C Load value at C into (HL)
+		m->writeByte(R_HL, C);
+		return 8;
+	case 0x72u: //LD (HL),D Load value at D into (HL)
+		m->writeByte(R_HL, D);
+		return 8;
+	case 0x73u: //LD (HL),E Load value at E into (HL)
+		m->writeByte(R_HL, E);
+		return 8;
+	case 0x74u: //LD (HL),H Load value at H into (HL)
+		m->writeByte(R_HL, H);
+		return 8;
+	case 0x75u: //LD (HL),L Load value at L into (HL)
+		m->writeByte(R_HL, L);
+		return 8;
+	case 0x76u: //HALT Power down CPU until an interrupt occurs.
 		handleHalt();
-		break;
-	case 119: //LD (HL),A Load value at A into (HL)
-		m->writeByte(m->readByte(R_HL), A);
-		break;
-	case 120: //LD A,B Load value of B into A
+		return 4;
+	case 0x77u: //LD (HL),A Load value at A into (HL)
+		m->writeByte(R_HL, A);
+		return 8;
+	case 0x78u: //LD A,B Load value of B into A
 		A = B;
-		break;
-	case 121: //LD A,C Load value of C into A
+		return 4;
+	case 0x79u: //LD A,C Load value of C into A
 		A = C;
-		break;
-	case 122: //LD A,D Load value of D into A
+		return 4;
+	case 0x7Au: //LD A,D Load value of D into A
 		A = D;
-		break;
-	case 123: //LD A,E Load value of E into A
+		return 4;
+	case 0x7Bu: //LD A,E Load value of E into A
 		A = E;
-		break;
-	case 124: //LD A,H Load value of H into A
+		return 4;
+	case 0x7Cu: //LD A,H Load value of H into A
 		A = H;
-		break;
-	case 125: //LD A,L Load value of L into A
+		return 4;
+	case 0x7Du: //LD A,L Load value of L into A
 		A = L;
-		break;
-	case 126: //LD A,(HL) Load value of (HL) into A
+		return 4;
+	case 0x7Eu: //LD A,(HL) Load value of (HL) into A
 		A = m->readByte(R_HL);
-		break;
-	case 127: //LD A,A Load value of A into A (do nothing)
-		break;
-	case 128: //ADD A,B Add B to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 8;
+	case 0x7Fu: //LD A,A Load value of A into A (do nothing)
+		return 4;
+	case 0x80u: //ADD A,B Add B to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + B;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 129: //ADD A,C Add C to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x81u: //ADD A,C Add C to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + C;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 130: //ADD A,D Add D to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x82u: //ADD A,D Add D to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + D;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 131: //ADD A,E Add E to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x83u: //ADD A,E Add E to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + E;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 132: //ADD A,H Add H to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x84u: //ADD A,H Add H to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + H;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 133: //ADD A,L Add L to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x85u: //ADD A,L Add L to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + L;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 134: //ADD A,(HL) Add (HL) to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x86u: //ADD A,(HL) Add (HL) to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + m->readByte(R_HL);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 135: //ADD A,A Add A to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 8;
+	case 0x87u: //ADD A,A Add A to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + A;
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 136: //ADC A,B Add B + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x88u: //ADC A,B Add B + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + B + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 137: //ADC A,C Add C + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x89u: //ADC A,C Add C + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + C + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 138: //ADC A,D Add D + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x8Au: //ADC A,D Add D + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + D + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 139: //ADC A,E Add E + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x8Bu: //ADC A,E Add E + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + E + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 140: //ADC A,H Add H + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x8Cu: //ADC A,H Add H + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + H + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 141: //ADC A,L Add L + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x8Du: //ADC A,L Add L + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + L + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 142: //ADC A,(HL) Add (HL) + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 4;
+	case 0x8Eu: //ADC A,(HL) Add (HL) + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + m->readByte(R_HL) + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 143: //ADC A,A Add A + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 8;
+	case 0x8Fu: //ADC A,A Add A + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + A + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 144: //SUB B Subtract B from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x90u: //SUB B Subtract B from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - B;
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 145: //SUB C Subtract C from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x91u: //SUB C Subtract C from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - C;
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 146: //SUB D Subtract D from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x92u: //SUB D Subtract D from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - D;
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 147: //SUB E Subtract E from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x93u: //SUB E Subtract E from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - E;
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 148: //SUB H Subtract H from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x94u: //SUB H Subtract H from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - H;
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 149: //SUB L Subtract L from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x95u: //SUB L Subtract L from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - L;
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 150: //SUB (HL) Subtract (HL) from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x96u: //SUB (HL) Subtract (HL) from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - m->readByte(R_HL);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 151: //SUB A Subtract A from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 8;
+	case 0x97u: //SUB A Subtract A from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		A = 0;
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.set(FLAG_ZERO, true);
 		F.set(FLAG_SUB, true);
-		break;
-	case 152: //SBC B Subtract B plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x98u: //SBC B Subtract B plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - B - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 153: //SBC C Subtract C plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x99u: //SBC C Subtract C plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - C - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 154: //SBC D Subtract D plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x9Au: //SBC D Subtract D plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - D - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 155: //SBC E Subtract E plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x9Bu: //SBC E Subtract E plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - E - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 156: //SBC H Subtract H plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x9Cu: //SBC H Subtract H plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - H - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 157: //SBC L Subtract L plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x9Du: //SBC L Subtract L plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - L - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 158: //SBC A Subtract (HL) plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 4;
+	case 0x9Eu: //SBC A Subtract (HL) plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - m->readByte(R_HL) - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 159: //SBC A Subtract A plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 8;
+	case 0x9Fu: //SBC A Subtract A plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		if (F[FLAG_C]){
 			F.reset(FLAG_ZERO);
 			F.set(FLAG_SUB, true);
@@ -1044,258 +1036,260 @@ void OP(uint8 code){
 			F.set(FLAG_ZERO);
 			A = 0;
 		}
-		break;
-	case 160: //AND B Logical AND B and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA0u: //AND B Logical AND B and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= B;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 161: //AND C Logical AND C and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA1u: //AND C Logical AND C and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= C;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 162: //AND D Logical AND D and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA2u: //AND D Logical AND D and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= D;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 163: //AND E Logical AND E and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA3u: //AND E Logical AND E and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= E;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 164: //AND H Logical AND H and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA4u: //AND H Logical AND H and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= H;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 165: //AND L Logical AND L and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA5u: //AND L Logical AND L and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= L;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 166: //AND (HL) Logical AND (HL) and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 4;
+	case 0xA6u: //AND (HL) Logical AND (HL) and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= m->readByte(R_HL);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 167: //AND A Logical AND A and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 8;
+	case 0xA7u: //AND A Logical AND A and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 168: //XOR B Logical XOR B and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xA8u: //XOR B Logical XOR B and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= B;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 169: //XOR C Logical XOR C and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xA9u: //XOR C Logical XOR C and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= C;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 170: //XOR D Logical XOR D and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xAAu: //XOR D Logical XOR D and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= D;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 171: //XOR E Logical XOR E and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xABu: //XOR E Logical XOR E and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= E;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 172: //XOR H Logical XOR H and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xACu: //XOR H Logical XOR H and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= H;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 173: //XOR L Logical XOR L and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xADu: //XOR L Logical XOR L and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= L;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 174: //XOR (HL) Logical XOR (HL) and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xAEu: //XOR (HL) Logical XOR (HL) and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= m->readByte(R_HL);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 175: //XOR A Logical XOR A and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 8;
+	case 0xAFu: //XOR A Logical XOR A and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A = 0;
 		F.set(FLAG_ZERO);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 176: //OR B Logical OR B and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB0u: //OR B Logical OR B and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= B;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 177: //OR C Logical OR C and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB1u: //OR C Logical OR C and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= C;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 178: //OR D Logical OR D and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB2u: //OR D Logical OR D and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= D;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 179: //OR E Logical OR E and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB3u: //OR E Logical OR E and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= E;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 180: //OR H Logical OR H and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB4u: //OR H Logical OR H and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= H;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 181: //OR L Logical OR L and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB5u: //OR L Logical OR L and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= L;
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 182: //OR (HL) Logical OR (HL) and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 4;
+	case 0xB6u: //OR (HL) Logical OR (HL) and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= m->readByte(R_HL);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 183: //OR A Logical OR A and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 8;
+	case 0xB7u: //OR A Logical OR A and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 184: //CP B Compare A and B. Flags: Z - set if A == B; N - Set; H - set if no borrow from bit 4; C - Set if A < B; 
+		return 4;
+	case 0xB8u: //CP B Compare A and B. Flags: Z - set if A == B; N - Set; H - set if no borrow from bit 4; C - Set if A < B; 
 		temp = A - B;
 		F.set(FLAG_HC, (temp & 0xFu) > (A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 185: //CP C Compare A and C. Flags: Z - set if A == C; N - Set; H - set if no borrow from bit 4; C - Set if A < C; 
+		return 4;
+	case 0xB9u: //CP C Compare A and C. Flags: Z - set if A == C; N - Set; H - set if no borrow from bit 4; C - Set if A < C; 
 		temp = A - C;
 		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 186: //CP D Compare A and D. Flags: Z - set if A == D; N - Set; H - set if no borrow from bit 4; C - Set if A < D;  
+		return 4;
+	case 0xBAu: //CP D Compare A and D. Flags: Z - set if A == D; N - Set; H - set if no borrow from bit 4; C - Set if A < D;  
 		temp = A - D;
 		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 187: //CP E Compare A and E. Flags: Z - set if A == E; N - Set; H - set if no borrow from bit 4; C - Set if A < E;  
+		return 4;
+	case 0xBBu: //CP E Compare A and E. Flags: Z - set if A == E; N - Set; H - set if no borrow from bit 4; C - Set if A < E;  
 		temp = A - E;
 		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 188: //CP H Compare A and H. Flags: Z - set if A == H; N - Set; H - set if no borrow from bit 4; C - Set if A < H;  
+		return 4;
+	case 0xBCu: //CP H Compare A and H. Flags: Z - set if A == H; N - Set; H - set if no borrow from bit 4; C - Set if A < H;  
 		temp = A - H;
 		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 189: //CP L Compare A and L. Flags: Z - set if A == L; N - Set; H - set if no borrow from bit 4; C - Set if A < L;  
+		return 4;
+	case 0xBDu: //CP L Compare A and L. Flags: Z - set if A == L; N - Set; H - set if no borrow from bit 4; C - Set if A < L;  
 		temp = A - L;
 		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 190: //CP (HL) Compare A and (HL). Flags: Z - set if A == (HL); N - Set; H - set if no borrow from bit 4; C - Set if A < (HL);  
+		return 4;
+	case 0xBEu: //CP (HL) Compare A and (HL). Flags: Z - set if A == (HL); N - Set; H - set if no borrow from bit 4; C - Set if A < (HL);  
 		temp = A - m->readByte(R_HL);
 		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 191: //CP A Compare A and A. Flags: Z - set if A == A; N - Set; H - set if no borrow from bit 4; C - Set if A < A; 
+		return 8;
+	case 0xBFu: //CP A Compare A and A. Flags: Z - set if A == A; N - Set; H - set if no borrow from bit 4; C - Set if A < A; 
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.set(FLAG_ZERO);
 		F.set(FLAG_SUB);
-		break;
-	case 192: //RET NZ Return if Z flag == 0
+		return 4;
+	case 0xC0u: //RET NZ Return if Z flag == 0
 		if (!F[FLAG_ZERO]){
 			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
 			SP += 2;
+			return 20;
 		}
-		break;
-	case 193: //POP BC, Pop 16-bits off of the stack into BC, increment SP twice
+		return 8;
+	case 0xC1u: //POP BC, Pop 16-bits off of the stack into BC, increment SP twice
 		C = m->readByte(SP);
 		B = m->readByte(SP + 1);
 		SP += 2;
-		break;
-	case 194: //JP NZ,nn Jump to address given by 16-bit immediate nn if Z flag == 0
+		return 12;
+	case 0xC2u: //JP NZ,nn Jump to address given by 16-bit immediate nn if Z flag == 0
 		if (!F[FLAG_ZERO]){
 			//postfix in C++ is undefined, PC may not increment between readByte calls postfix only is guaranteed to occur after the line
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8); 
 			nn = m->readByte(PC++);
 			nn |= m->readByte(PC++) << 8;
 			PC = nn;
+			return 16;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 195: //JP nn Jump to address given by 16-bit immediate nn. LS byte first
+	case 0xC3u: //JP nn Jump to address given by 16-bit immediate nn. LS byte first
 		//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
 		nn = m->readByte(PC++);
 		nn |= m->readByte(PC++) << 8;
 		PC = nn;
-		break;
-	case 196: //CALL NZ,nn Call nn if Z flag == 0
+		return 16;
+	case 0xC4u: //CALL NZ,nn Call nn if Z flag == 0
 		if (!F[FLAG_ZERO]){
 			temp = m->readByte(PC++);
 			temp |= (m->readByte(PC++) << 8);
@@ -1304,57 +1298,68 @@ void OP(uint8 code){
 			SP -= 1;
 			m->writeByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
+			return 24;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 197: //PUSH BC Push BC onto the stack, decrement SP twice
+	case 0xC5u: //PUSH BC Push BC onto the stack, decrement SP twice
 		SP -= 1;
 		m->writeByte(SP, B);
 		SP -= 1;
 		m->writeByte(SP, C);
-		break;
-	case 198: //ADD A,n Add 8-bit immediate to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 16;
+	case 0xC6u: //ADD A,n Add 8-bit immediate to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + m->readByte(PC++);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 199: //RST 00H Push PC onto the stack, jump to 0000
+		return 8;
+	case 0xC7u: //RST 00H Push PC onto the stack, jump to 0000
 		SP -= 1;
-		m->writeByte(m->readByte(SP), PC >> 8);
+		m->writeByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(m->readByte(SP), PC & 0xFFu);
+		m->writeByte(SP, PC & 0xFFu);
 		PC = 0;
-		break;
-	case 200: //RET Z Return if Z flag == 1
+		return 16;
+	case 0xC8u: //RET Z Return if Z flag == 1
 		if (F[FLAG_ZERO]){
 			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
 			SP += 2;
+			return 20;
 		}
-		break;
-	case 201: //RET Pop two bytes from stack and jump to the address given by them
+		return 8;
+	case 0xC9u: //RET Pop two bytes from stack and jump to the address given by them
 		PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
 		SP += 2;
-		break;
-	case 202: //JP Z,nn Jump to address given by 16-bit immediate nn if Z flag == 1
+		return 16;
+	case 0xCAu: //JP Z,nn Jump to address given by 16-bit immediate nn if Z flag == 1
 		if (F[FLAG_ZERO]){
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
 			nn = m->readByte(PC++);
 			nn |= m->readByte(PC++) << 8;
 			PC = nn;
+			return 16;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 203: //CB prefix, call CB(OPCODE) where OPCODE is the next 8-bits after CB
-		CB(m->readByte(PC++));
-		break;
-	case 204: //CALL Z,nn Call nn if Z flag == 1
+	case 0xCBu: //CB prefix, call CB(OPCODE) where OPCODE is the next 8-bits after CB
+		temp2 = m->readByte(PC++);
+		CB(temp2);
+		
+		//All CB operations take 8 cycles, except for those ending in 6 and E, which take 16 cycles. CB itself takes 4 cycles.
+		if ((temp2 & 0x0F) == 0x06 || (temp2 & 0x0F) == 0x0E){
+			return 20;
+		}
+		else{
+			return 12;
+		}
+	case 0xCCu: //CALL Z,nn Call nn if Z flag == 1
 		if (F[FLAG_ZERO]){
 			temp = m->readByte(PC++);
 			temp |= (m->readByte(PC++) << 8);
@@ -1363,12 +1368,13 @@ void OP(uint8 code){
 			SP -= 1;
 			m->writeByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
+			return 24;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 205: //CALL nn Push address of next instruction onto the stack and then jump to nn where nn is a 16-bit immediate (LS byte first)
+	case 0xCDu: //CALL nn Push address of next instruction onto the stack and then jump to nn where nn is a 16-bit immediate (LS byte first)
 		temp = m->readByte(PC++);
 		temp |= (m->readByte(PC++) << 8);
 		SP -= 1;
@@ -1376,48 +1382,50 @@ void OP(uint8 code){
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = temp & 0xFFFFu;
-		break;
-	case 206: //ADC A,n Add 8-bit immediate n + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
+		return 24;
+	case 0xCEu: //ADC A,n Add 8-bit immediate n + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
 		temp = A + m->readByte(PC++) + ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, false);
-		break;
-	case 207: //RST 08H Push PC onto the stack, jump to 0x0008u
+		return 8;
+	case 0xCFu: //RST 08H Push PC onto the stack, jump to 0x0008u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x8u;
-		break;
-	case 208: //RET NC return if C flag == 0
+		return 16;
+	case 0xD0u: //RET NC return if C flag == 0
 		if (!F[FLAG_C]){
 			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
 			SP += 2;
+			return 20;
 		}
-		break;
-	case 209: //POP DE, Pop 16-bits off of the stack into DE, increment SP twice
+		return 8;
+	case 0xD1u: //POP DE, Pop 16-bits off of the stack into DE, increment SP twice
 		E = m->readByte(SP);
 		D = m->readByte(SP + 1);
 		SP += 2;
-		break;
-	case 210: //JP NC,nn Jump to address given by 16-bit immediate nn if C flag == 0
+		return 12;
+	case 0xD2u: //JP NC,nn Jump to address given by 16-bit immediate nn if C flag == 0
 		if (!F[FLAG_C]){
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
 			nn = m->readByte(PC++);
 			nn |= m->readByte(PC++) << 8;
 			PC = nn;
+			return 16;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 211: //Illegal opcode, halt execution (0xD3u)
+	case 0xD3u: //Illegal opcode, halt execution (0xD3u)
 		printf("Illegal OP: 0xD3u at PC: %u", PC);
-		break;
-	case 212: //CALL NC,nn Call nn if C flag == 0
+		return -1;
+	case 0xD4u: //CALL NC,nn Call nn if C flag == 0
 		if (!F[FLAG_C]){
 			temp = m->readByte(PC++);
 			temp |= (m->readByte(PC++) << 8);
@@ -1426,58 +1434,61 @@ void OP(uint8 code){
 			SP -= 1;
 			m->writeByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
+			return 24;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 213: //PUSH DE Push DE onto the stack, decrement SP twice
+	case 0xD5u: //PUSH DE Push DE onto the stack, decrement SP twice
 		SP -= 1;
 		m->writeByte(SP, D);
 		SP -= 1;
 		m->writeByte(SP, E);
-		break;
-	case 214: //SUB n Subtract 8-bit immediate n from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return 16;
+	case 0xD6u: //SUB n Subtract 8-bit immediate n from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - m->readByte(PC++);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 215: //RST 10H Push PC onto the stack, jump to 0x0010u
+		return 8;
+	case 0xD7u: //RST 10H Push PC onto the stack, jump to 0x0010u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x10u;
-		break;
-	case 216: //RET C Return if C flag == 1
+		return 16;
+	case 0xD8u: //RET C Return if C flag == 1
 		if (F[FLAG_C]){
 			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
 			SP += 2;
+			return 20;
 		}
-		break;
-	case 217: //RETI Pop two bytes off the stack and jump to that address, enable interrupts
+		return 8;
+	case 0xD9u: //RETI Pop two bytes off the stack and jump to that address, enable interrupts
 		PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
 		SP += 2;
 		interruptEnabled = true;
-		break;
-	case 218: //JP C,nn Jump to address given by 16-bit immediate if C flag == 1
+		return 16;
+	case 0xDAu: //JP C,nn Jump to address given by 16-bit immediate if C flag == 1
 		if (F[FLAG_C]){
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
 			nn = m->readByte(PC++);
 			nn |= m->readByte(PC++) << 8;
 			PC = nn;
+			return 16;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 219: //Illegal opcode, halt execution (0xDBu)
+	case 0xDBu: //Illegal opcode, halt execution (0xDBu)
 		printf("Illegal OP: 0xDBu at PC: %u", PC);
-		break;
-	case 220: //CALL C,nn Call nn if C flag == 1
+		return -1;
+	case 0xDCu: //CALL C,nn Call nn if C flag == 1
 		if (F[FLAG_C]){
 			temp = m->readByte(PC++);
 			temp |= (m->readByte(PC++) << 8);
@@ -1486,111 +1497,111 @@ void OP(uint8 code){
 			SP -= 1;
 			m->writeByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
+			return 24;
 		}
 		else{
 			PC += 2;
+			return 12;
 		}
-		break;
-	case 221: //Illegal opcode, halt execution (0xDDu)
+	case 0xDDu: //Illegal opcode, halt execution (0xDDu)
 		printf("Illegal OP: 0xDDu at PC: %u", PC);
-		break;
-	case 222: //SBC n Subtract 8-bit immediate n plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
+		return -1;
+	case 0xDEu: //SBC n Subtract 8-bit immediate n plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 		temp = A - m->readByte(PC++) - ((F[FLAG_C]) ? 1 : 0);
 		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		A = temp & 0xFFu;
 		F.set(FLAG_ZERO, temp == 0);
 		F.set(FLAG_SUB, true);
-		break;
-	case 223: //RST 18H Push PC onto the stack, jump to 0x0018u
+		return 8;
+	case 0xDFu: //RST 18H Push PC onto the stack, jump to 0x0018u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x18u;
-		break;
-	case 224: //LDH n,A Load A into address given by $FF00 + n where n is an 8-bit immediate
-		m->writeByte(m->readByte(0xFF00u + m->readByte(PC++)), A);
-		break;
-	case 225: //POP HL, Pop 16-bits off of the stack into HL, increment SP twice
+		return 16;
+	case 0xE0: //LDH n,A Load A into address given by $FF00 + n where n is an 8-bit immediate
+		m->writeByte(0xFF00u + m->readByte(PC++), A);
+		return 12;
+	case 0xE1u: //POP HL, Pop 16-bits off of the stack into HL, increment SP twice
 		L = m->readByte(SP);
 		H = m->readByte(SP + 1);
 		SP += 2;
-		break;
-	case 226: //LD (C),A Load A into address $FF00 + C
-		m->writeByte(m->readByte(0xFF00u + C), A);
-		break;
-	case 227: //Illegal opcode, halt execution (0xE3u)
+		return 12;
+	case 0xE2u: //LD (C),A Load A into address $FF00 + C
+		m->writeByte(0xFF00u + C, A);
+		return 8;
+	case 0xE3u: //Illegal opcode, halt execution (0xE3u)
 		printf("Illegal OP: 0xE3u at PC: %u", PC);
-		break;
-	case 228: //Illegal opcode, halt execution (0xE4u)
+		return -1;
+	case 0xE4u: //Illegal opcode, halt execution (0xE4u)
 		printf("Illegal OP: 0xE4u at PC: %u", PC);
-		break;
-	case 229: //PUSH HL Push HL onto the stack, decrement SP twice
+		return -1;
+	case 0xE5u: //PUSH HL Push HL onto the stack, decrement SP twice
 		SP -= 1;
 		m->writeByte(SP, H);
 		SP -= 1;
 		m->writeByte(SP, L);
-		break;
-	case 230: //AND n Logical AND 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
+		return 16;
+	case 0xE6u: //AND n Logical AND 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
 		A &= m->readByte(PC++);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 231: //RST 20H Push PC onto the stack, jump to 0x0020u
+		return 8;
+	case 0xE7u: //RST 20H Push PC onto the stack, jump to 0x0020u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x20u;
-		break;
-	case 232: //ADD SP,n Add 8-bit immediate to SP.Flags:Z - reset; N - reset; H,C - set or reset according to operation
+		return 16;
+	case 0xE8u: //ADD SP,n Add 8-bit immediate to SP.Flags:Z - reset; N - reset; H,C - set or reset according to operation
 		temp2 = m->readByte(PC++);
 		temp = SP + temp2;
 		F.reset();
 		F.set(FLAG_HC, ((SP ^ temp2 ^ (temp & 0xFFFFu)) & 0x10u) == 0x10u);
 		F.set(FLAG_C, ((SP ^ temp2 ^ (temp & 0xFFFFu)) & 0x100u) == 0x100u);
 		SP = temp & 0xFFFFu;
-		break;
-	case 233: //JP HL Jump to address in HL.
+		return 16;
+	case 0xE9u: //JP HL Jump to address in HL.
 		PC = R_HL;
-		break;
-	case 234: //LD (nn),A Load value at A into 16-bit immediate address (nn)
+		return 4;
+	case 0xEAu: //LD (nn),A Load value at A into 16-bit immediate address (nn)
 		//m->writeByte(m->readByte(m->readByte(PC) | (m->readByte(PC+1) << 8)), A);
 		nn = m->readByte(PC++);
 		nn |= m->readByte(PC++) << 8;
 		m->writeByte(nn, A);
-		PC += 2;
-		break;
-	case 235: //Illegal opcode, halt execution (0xEBu)
+		return 16;
+	case 0xEBu: //Illegal opcode, halt execution (0xEBu)
 		printf("Illegal OP: 0xEBu at PC: %u", PC);
-		break;
-	case 236: //Illegal opcode, halt execution (0xECu)
+		return -1;
+	case 0xECu: //Illegal opcode, halt execution (0xECu)
 		printf("Illegal OP: 0xECu at PC: %u", PC);
-		break;
-	case 237: //Illegal opcode, halt execution (0xEDu)
+		return -1;
+	case 0xEDu: //Illegal opcode, halt execution (0xEDu)
 		printf("Illegal OP: 0xEDu at PC: %u", PC);
-		break;
-	case 238: //XOR n Logical XOR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return -1;
+	case 0xEEu: //XOR n Logical XOR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A ^= m->readByte(PC++);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-		break;
-	case 239: //RST 28H Push PC onto the stack, jump to 0x0028u
+		return 8;
+	case 0xEFu: //RST 28H Push PC onto the stack, jump to 0x0028u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x28u;
-		break;
-	case 240: //LDH A,(n) Load value at $FF00 + n into A where n is an 8-bit immediate
+		return 16;
+	case 0xF0u: //LDH A,(n) Load value at $FF00 + n into A where n is an 8-bit immediate
 		A = m->readByte(0xFF00u + m->readByte(PC++));
-		break;
-	case 241: //POP AF, Pop 16-bits off of the stack into AF, increment SP twice
+		return 12;
+	case 0xF1u: //POP AF, Pop 16-bits off of the stack into AF, increment SP twice
 		temp = m->readByte(SP);
 		F.set(FLAG_ZERO, temp > 0x7Fu);
 		F.set(FLAG_SUB, (temp & 0x40u) == 0x40u);
@@ -1598,37 +1609,37 @@ void OP(uint8 code){
 		F.set(FLAG_C, (temp & 0x10u) == 0x10u);
 		A = m->readByte(SP + 1);
 		SP += 2;
-		break;
-	case 242: //LD A,(C) Load value at address $FF00 + C into A
+		return 12;
+	case 0xF2u: //LD A,(C) Load value at address $FF00 + C into A
 		A = m->readByte(0xFF00u + C);
-		break;
-	case 243: //DI Disable interrupts after this instruction is executed
+		return 8;
+	case 0xF3u: //DI Disable interrupts after this instruction is executed
 		interruptEnabled = false;
-		break;
-	case 244: //Illegal opcode, halt execution (0xF4u)
+		return 4;
+	case 0xF4u: //Illegal opcode, halt execution (0xF4u)
 		printf("Illegal OP: 0xF4u at PC: %u", PC);
-		break;
-	case 245: //PUSH AF Push AF onto the stack, decrement SP twice
+		return -1;
+	case 0xF5u: //PUSH AF Push AF onto the stack, decrement SP twice
 		SP -= 1;
 		m->writeByte(SP, A);
 		SP -= 1;
 		m->writeByte(SP, ((F[FLAG_ZERO]) ? 0x80u : 0) | ((F[FLAG_SUB]) ? 0x40u : 0) | ((F[FLAG_HC]) ? 0x20u : 0) | ((F[FLAG_C]) ? 0x10u : 0));
-		break;
-	case 246: //OR n Logical OR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
+		return 16;
+	case 0xF6u: //OR n Logical OR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
 		A |= m->readByte(PC++);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
 		F.reset(FLAG_SUB);
-break;
-	case 247: //RST 30H Push PC onto the stack, jump to 0x0030u
+		return 8;
+	case 0xF7u: //RST 30H Push PC onto the stack, jump to 0x0030u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x30u;
-		break;
-	case 248: //LDHL SP,n Load value SP + n into HL where n is an 8-bit immediate. flags: Z,N - reset; H,C set according to operation
+		return 16;
+	case 0xF8u: //LDHL SP,n Load value SP + n into HL where n is an 8-bit immediate. flags: Z,N - reset; H,C set according to operation
 		temp = m->readByte(PC++) + SP;
 		L = temp & 0xFFu;
 		H = (temp >> 8) & 0xFFu;
@@ -1636,39 +1647,40 @@ break;
 		F.reset();
 		F.set(FLAG_C, (temp & 0x100u) == 0x100u);
 		F.set(FLAG_HC, (temp & 0x10u) == 0x10u);
-		break;
-	case 249: //LD SP,HL Load value at HL into SP
+		return 12;
+	case 0xF9u: //LD SP,HL Load value at HL into SP
 		SP = R_HL;
-		break;
-	case 250: //LD A,(nn) Load value of 16-bit immediate address (nn) into A
+		return 8;
+	case 0xFAu: //LD A,(nn) Load value of 16-bit immediate address (nn) into A
 		nn = m->readByte(PC++);
 		nn |= m->readByte(PC++) << 8;
 		A = m->readByte(nn);
-		break;
-	case 251: //EI Enable interrupts after this instruction is executed
+		return 16;
+	case 0xFBu: //EI Enable interrupts after this instruction is executed
 		interruptEnabled = true;
-		break;
-	case 252: //Illegal opcode, halt execution (0xFCu)
+		return 4;
+	case 0xFCu: //Illegal opcode, halt execution (0xFCu)
 		printf("Illegal OP: 0xFCu at PC: %u", PC);
-		break;
-	case 253: //Illegal opcode, halt execution (0xFDu)
+		return -1;
+	case 0xFDu: //Illegal opcode, halt execution (0xFDu)
 		printf("Illegal OP: 0xFDu at PC: %u", PC);
-		break;
-	case 254: //CP n Compare A and 8-bit immediate n. Flags: Z - set if A == n; N - Set; H - set if no borrow from bit 4; C - Set if A < n; 
+		return -1;
+	case 0xFEu: //CP n Compare A and 8-bit immediate n. Flags: Z - set if A == n; N - Set; H - set if no borrow from bit 4; C - Set if A < n; 
 		temp = A - m->readByte(PC++);
 		F.set(FLAG_HC, (temp & 0xFu) > (A & 0xFu));
 		F.set(FLAG_C, temp < 0);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB);
-		break;
-	case 255: //RST 38H, Push PC onto the stack, jump to 0x0038u
+		return 8;
+	case 0xFFu: //RST 38H, Push PC onto the stack, jump to 0x0038u
 		SP -= 1;
 		m->writeByte(SP, PC >> 8);
 		SP -= 1;
 		m->writeByte(SP, PC & 0xFFu);
 		PC = 0x38u;
-		break;
-
+		return 16;
+	default:
+		return -1; //not reachable, just here to suppress warnings
 	}
 }
 
@@ -1893,7 +1905,7 @@ void CB(uint8 code){
 		RLC(&L);
 		break;
 	case 0x6u:	//RLC (HL)
-		m->writeByte(m->readByte(R_HL),RLC(m->readByte(R_HL)));
+		m->writeByte(R_HL,RLC(m->readByte(R_HL)));
 		break;
 	case 0x7u:	//RLC A
 		RLC(&A);
@@ -1917,7 +1929,7 @@ void CB(uint8 code){
 		RRC(&L);
 		break;
 	case 0xEu:	//RRC (HL)
-		m->writeByte(m->readByte(R_HL), RRC(m->readByte(R_HL)));
+		m->writeByte(R_HL, RRC(m->readByte(R_HL)));
 		break;
 	case 0xFu:	//RRC A
 		RRC(&A);
@@ -1941,7 +1953,7 @@ void CB(uint8 code){
 		RL(&L);
 		break;
 	case 0x16u:	//RL (HL)
-		m->writeByte(m->readByte(R_HL), RL(m->readByte(R_HL)));
+		m->writeByte(R_HL, RL(m->readByte(R_HL)));
 		break;
 	case 0x17u:	//RL A
 		RL(&A);
@@ -1965,7 +1977,7 @@ void CB(uint8 code){
 		RR(&L);
 		break;
 	case 0x1Eu:	//RR (HL)
-		m->writeByte(m->readByte(R_HL), RR(m->readByte(R_HL)));
+		m->writeByte(R_HL, RR(m->readByte(R_HL)));
 		break;
 	case 0x1Fu:	//RR A
 		RR(&A);
@@ -1989,7 +2001,7 @@ void CB(uint8 code){
 		SLA(&L);
 		break;
 	case 0x26u:	//SLA (HL)
-		m->writeByte(m->readByte(R_HL), SLA(m->readByte(R_HL)));
+		m->writeByte(R_HL, SLA(m->readByte(R_HL)));
 		break;
 	case 0x27u:	//SLA A
 		SLA(&A);
@@ -2013,7 +2025,7 @@ void CB(uint8 code){
 		SRA(&L);
 		break;
 	case 0x2Eu:	//SRA (HL)
-		m->writeByte(m->readByte(R_HL), SRA(m->readByte(R_HL)));
+		m->writeByte(R_HL, SRA(m->readByte(R_HL)));
 		break;
 	case 0x2Fu:	//SRA A
 		SRA(&A);
@@ -2037,7 +2049,7 @@ void CB(uint8 code){
 		SWAP(&L);
 		break;
 	case 0x36u:	//SWAP (HL)
-		m->writeByte(m->readByte(R_HL), SWAP(m->readByte(R_HL)));
+		m->writeByte(R_HL, SWAP(m->readByte(R_HL)));
 		break;
 	case 0x37u:	//SWAP A
 		SWAP(&A);
@@ -2061,7 +2073,7 @@ void CB(uint8 code){
 		SRL(&L);
 		break;
 	case 0x3Eu:	//SRL (HL)
-		m->writeByte(m->readByte(R_HL), SRL(m->readByte(R_HL)));
+		m->writeByte(R_HL, SRL(m->readByte(R_HL)));
 		break;
 	case 0x3Fu:	//SRL A
 		SRL(&A);
@@ -2277,7 +2289,7 @@ void CB(uint8 code){
 		RES(0, &L);
 		break;
 	case 0x86u:	//RES 0,(HL)
-		m->writeByte(m->readByte(R_HL), RES(0, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(0, m->readByte(R_HL)));
 		break;
 	case 0x87u:	//RES 0,A
 		RES(0, &A);
@@ -2301,7 +2313,7 @@ void CB(uint8 code){
 		RES(1, &L);
 		break;
 	case 0x8Eu:	//RES 1,(HL)
-		m->writeByte(m->readByte(R_HL), RES(1, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(1, m->readByte(R_HL)));
 		break;
 	case 0x8Fu:	//RES 1,A
 		RES(1, &A);
@@ -2325,7 +2337,7 @@ void CB(uint8 code){
 		RES(2, &L);
 		break;
 	case 0x96u:	//RES 2,(HL)
-		m->writeByte(m->readByte(R_HL), RES(2, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(2, m->readByte(R_HL)));
 		break;
 	case 0x97u:	//RES 2,A
 		RES(2, &A);
@@ -2349,7 +2361,7 @@ void CB(uint8 code){
 		RES(3, &L);
 		break;
 	case 0x9Eu:	//RES 3,(HL)
-		m->writeByte(m->readByte(R_HL), RES(3, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(3, m->readByte(R_HL)));
 		break;
 	case 0x9Fu:	//RES 3,A
 		RES(3, &A);
@@ -2373,7 +2385,7 @@ void CB(uint8 code){
 		RES(4, &L);
 		break;
 	case 0xA6u:	//RES 4,(HL)
-		m->writeByte(m->readByte(R_HL), RES(4, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(4, m->readByte(R_HL)));
 		break;
 	case 0xA7u:	//RES 4,A
 		RES(4, &A);
@@ -2397,7 +2409,7 @@ void CB(uint8 code){
 		RES(5, &L);
 		break;
 	case 0xAEu:	//RES 5,(HL)
-		m->writeByte(m->readByte(R_HL), RES(5, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(5, m->readByte(R_HL)));
 		break;
 	case 0xAFu:	//RES 5,A
 		RES(5, &A);
@@ -2421,7 +2433,7 @@ void CB(uint8 code){
 		RES(6, &L);
 		break;
 	case 0xB6u:	//RES 6,(HL)
-		m->writeByte(m->readByte(R_HL), RES(6, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(6, m->readByte(R_HL)));
 		break;
 	case 0xB7u:	//RES 6,A
 		RES(6, &A);
@@ -2445,7 +2457,7 @@ void CB(uint8 code){
 		RES(7, &L);
 		break;
 	case 0xBEu:	//RES 7,(HL)
-		m->writeByte(m->readByte(R_HL), RES(7, m->readByte(R_HL)));
+		m->writeByte(R_HL, RES(7, m->readByte(R_HL)));
 		break;
 	case 0xBFu:	//RES 7,A
 		RES(7, &A);
@@ -2469,7 +2481,7 @@ void CB(uint8 code){
 		SET(0, &L);
 		break;
 	case 0xC6u:	//SET 0,(HL)
-		m->writeByte(m->readByte(R_HL), SET(0, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(0, m->readByte(R_HL)));
 		break;
 	case 0xC7u:	//SET 0,A
 		SET(0, &A);
@@ -2493,7 +2505,7 @@ void CB(uint8 code){
 		SET(1, &L);
 		break;
 	case 0xCEu:	//SET 1,(HL)
-		m->writeByte(m->readByte(R_HL), SET(1, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(1, m->readByte(R_HL)));
 		break;
 	case 0xCFu:	//SET 1,A
 		SET(1, &A);
@@ -2517,7 +2529,7 @@ void CB(uint8 code){
 		SET(2, &L);
 		break;
 	case 0xD6u:	//SET 2,(HL)
-		m->writeByte(m->readByte(R_HL), SET(2, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(2, m->readByte(R_HL)));
 		break;
 	case 0xD7u:	//SET 2,A
 		SET(2, &A);
@@ -2541,7 +2553,7 @@ void CB(uint8 code){
 		SET(3, &L);
 		break;
 	case 0xDEu:	//SET 3,(HL)
-		m->writeByte(m->readByte(R_HL), SET(3, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(3, m->readByte(R_HL)));
 		break;
 	case 0xDFu:	//SET 3,A
 		SET(3, &A);
@@ -2565,7 +2577,7 @@ void CB(uint8 code){
 		SET(4, &L);
 		break;
 	case 0xE6u:	//SET 4,(HL)
-		m->writeByte(m->readByte(R_HL), SET(4, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(4, m->readByte(R_HL)));
 		break;
 	case 0xE7u:	//SET 4,A
 		SET(4, &A);
@@ -2589,7 +2601,7 @@ void CB(uint8 code){
 		SET(5, &L);
 		break;
 	case 0xEEu:	//SET 5,(HL)
-		m->writeByte(m->readByte(R_HL), SET(5, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(5, m->readByte(R_HL)));
 		break;
 	case 0xEFu:	//SET 5,A
 		SET(5, &A);
@@ -2613,7 +2625,7 @@ void CB(uint8 code){
 		SET(6, &L);
 		break;
 	case 0xF6u:	//SET 6,(HL)
-		m->writeByte(m->readByte(R_HL), SET(6, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(6, m->readByte(R_HL)));
 		break;
 	case 0xF7u:	//SET 6,A
 		SET(6, &A);
@@ -2637,7 +2649,7 @@ void CB(uint8 code){
 		SET(7, &L);
 		break;
 	case 0xFEu:	//SET 7,(HL)
-		m->writeByte(m->readByte(R_HL), SET(7, m->readByte(R_HL)));
+		m->writeByte(R_HL, SET(7, m->readByte(R_HL)));
 		break;
 	case 0xFFu:	//SET 7,A
 		SET(7, &A);
