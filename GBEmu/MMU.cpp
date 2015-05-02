@@ -22,12 +22,19 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 
 	rom = cartRom;								//0000-7FFF
 	bios = new uint8[0xFFu];					//0000-00FF
+	memset(bios, 0, sizeof(uint8) * 0xFFu);
 	vram = new uint8[0x1FFFu];					//8000-9FFF
+	memset(vram, 0, sizeof(uint8) * 0x1FFFu);
 	eram = new uint8[(0x1FFFu * numRAMBanks)];	//A000-BFFF
+	memset(eram, 0, sizeof(uint8) * 0x1FFFu);
 	wram = new uint8[0x3DFFu];					//C000-FDFF
+	memset(wram, 0, sizeof(uint8) * 0x3DFFu);
 	oam = new uint8[0xFFu];						//FE00-FE9F
+	memset(oam, 0, sizeof(uint8) * 0xFFu);
 	io = new uint8[0x7Fu];						//FF00-FF7F
+	memset(io, 0, sizeof(uint8) * 0x7Fu);
 	zram = new uint8[0x7Fu];					//FF80-FFFF
+	memset(zram, 0, sizeof(uint8) * 0x7Fu);
 	if (type == MBC3){
 		RTC = new uint8[5];
 	}
@@ -66,10 +73,10 @@ uint8 MMU::readByte(unsigned _int16 address){
 	//0x0000-0x3FFF : Cartridge rom (first 16,384 bytes)
 	case 0x0000u:
 		//0x0000-0x00FF : GB BIOS after it is complete this maps to cartridge ROM
-		if (inBIOS){
-			if (address < 0x0100)
-				return bios[address];
-		}
+		//if (inBIOS){
+		//	if (address < 0x0100)
+		//		return bios[address];
+		//}
 	case 0x1000:
 	case 0x2000:
 	case 0x3000:
@@ -180,6 +187,15 @@ RTCRegister getRTCReg(uint8 value){
 		return DH;
 	default:	//just to get rid of compiler warning, will never reach this
 		return S;
+	}
+}
+
+//used to transfer sprite data
+//From value<<8 to 0xFE00
+void DMATransfer(uint8 value){
+	uint16 address = value << 8;
+	for (int i = 0; i < 0xA0; i++){
+		m->writeByte(0xFE00 + i, m->readByte(address + i));
 	}
 }
 
@@ -360,6 +376,9 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 				}
 				else if (address == 0xFF44){
 					io[0x44] = 0;
+				}
+				else if (address == 0xFF46){
+					DMATransfer(value);
 				}
 				if (address == 0xFF02u){
 					io[0x02] = value;

@@ -4,7 +4,7 @@
 
 
 
-uint16 data[160][144];
+uint16 data[144][160];
 SDL_Window* window;
 SDL_Renderer* renderer;
 SDL_Texture* texture;
@@ -21,7 +21,9 @@ GPU::GPU()
 
 GPU::~GPU()
 {
-	delete[] data;
+	for (int i = 0; i < 160; i++)
+		delete[] &data[i];
+	delete[] &data;
 	SDL_DestroyTexture(texture);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
@@ -36,13 +38,15 @@ void GPU::Reset(){
 
 	window = SDL_CreateWindow("GBEmu", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 160, 144, 0);
 	renderer = SDL_CreateRenderer(window, -1, 0);
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR4444, SDL_TEXTUREACCESS_STATIC, 160, 144);
+	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR4444, SDL_TEXTUREACCESS_STREAMING, 160, 144);
+	//if (!window || !renderer || !texture)
+		printf("%s\n", SDL_GetError());
 	//memset(data, 0x000000u, 160 * 144 * sizeof(unsigned _int32));
 	return;
 }
 
 void GPU::Update(){
-	SDL_UpdateTexture(texture, NULL, data, 144 * sizeof(uint16));
+	SDL_UpdateTexture(texture, NULL, data, 160 * 2);
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
@@ -114,8 +118,8 @@ void GPU::Step(int cycles){
 
 	if (scanlineCounter <= 0){	//done with this scanline, on to the next;
 		scanlineCounter = 456;
-		m->incrementLY();
 		uint8 line = LY;
+		m->incrementLY();
 
 		if (line == 144){
 			requestInterrupt(VBLANK);
@@ -136,17 +140,17 @@ void GPU::Step(int cycles){
 }
 
 uint8 mapPalette(uint8 colorNumber, uint8 palette){
-	uint8 colorBits = palette & (0x11u << colorNumber * 2);
+	uint8 colorBits = palette & (0x03u << colorNumber * 2);
 	colorBits >>= colorNumber * 2;
 	return colorBits;
 }
 
 void drawBGLine(){
-	unsigned _int16 bgAddress;
-	unsigned _int16 tileAddress;
+	unsigned _int16 tileMapAddress;
+	unsigned _int16 tileDataAddress;
 	uint8 yPos;
 	bool isUnsigned = true;
-	bool drawWindow = false;
+	bool drawWindow = false;	//is this line in the window
 
 	//Check if we are drawing the window
 	if ((LCDC & (1 << 5)) > 0 && (WY <= LY)){
@@ -154,35 +158,35 @@ void drawBGLine(){
 	}
 
 	if ((LCDC & (1 << 4)) > 0){	//is the tile data signed or not
-		tileAddress = 0x8000u;
+		tileDataAddress = 0x8000u;
 	}
 	else{
-		tileAddress = 0x8800u;
+		tileDataAddress = 0x8800u;
 		isUnsigned = false;
 	}
 
 	if (drawWindow){	//determine the address for the background data
 		if ((LCDC & (1 << 6)) > 0){
-			bgAddress = 0x9C00u;
+			tileMapAddress = 0x9C00u;
 		}
 		else{
-			bgAddress = 0x9800u;
+			tileMapAddress = 0x9800u;
 		}
 	}
 	else{
 		if ((LCDC & (1 << 3)) > 0){
-			bgAddress = 0x9C00u;
+			tileMapAddress = 0x9C00u;
 		}
 		else{
-			bgAddress = 0x9800u;
+			tileMapAddress = 0x9800u;
 		}
 	}
 
 	if (drawWindow){
-		yPos = LY - WY;
+		yPos = LY - WY;	//what Y coordinate are we on (0-144)
 	}
 	else{
-		yPos = SCY - LY;
+		yPos = SCY + LY;
 	}
 
 	//which row in the tile are we on
@@ -194,7 +198,7 @@ void drawBGLine(){
 		if (drawWindow && i >= WX)
 			xPos = i - WX;
 		uint16 tileCol = xPos / 8;
-		uint16 tileAddress = bgAddress + tileRow + tileCol;
+		uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 		//made this an int because it can either be a signed or unsigned number, so this should prevent overflow
 		_int16 tileNum;
 		if (isUnsigned){
@@ -204,7 +208,7 @@ void drawBGLine(){
 			tileNum = (_int16)m->readByte(tileAddress);
 		}
 
-		uint16 tileLocation = tileAddress;
+		uint16 tileLocation = tileDataAddress;
 		if (isUnsigned){
 			tileLocation += (tileNum * 16);
 		}
@@ -228,16 +232,16 @@ void drawBGLine(){
 		//data[i][LY] = palette;
 		switch (palette){
 		case 0x00u:
-			data[i][LY] = 0xF000u;
+			data[LY-1][i] = 0xFFFFu;
 			break;
 		case 0x01u:
-			data[i][LY] = 0xFCCCu;
+			data[LY-1][i] = 0xF777u;
 			break;
 		case 0x02u:
-			data[i][LY] = 0xF777u;
+			data[LY-1][i] = 0xFCCCu;
 			break;
 		case 0x03u:
-			data[i][LY] = 0xFFFFu;
+			data[LY-1][i] = 0xF000u;
 			break;
 		}
 	}

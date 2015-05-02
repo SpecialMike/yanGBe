@@ -49,9 +49,11 @@ unsigned int time_left(void)
 }
 
 void init(){
-	A = 0x1u;
+	A = 0x01u;
 	F = 0xB0u;
+	B = 0x00u;
 	C = 0x13u;
+	D = 0x00u;
 	E = 0xD8u;
 	H = 0x01u;
 	L = 0x4Du;
