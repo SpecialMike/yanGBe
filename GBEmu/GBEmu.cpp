@@ -32,6 +32,12 @@ int OP(uint8 code);
 void CB(uint8 code);
 bool openROM(char* file);
 void getCartInfo();
+
+void RLC(uint8* reg);
+void RRC(uint8* reg);
+void RL(uint8* reg);
+void RR(uint8* reg);
+
 GPU* g = new GPU();
 MMU* m;
 unsigned int next_time = 0;
@@ -107,7 +113,7 @@ int main(int argc, char* argv[]){
 	while (true){
 		MainLoop();
 		SDL_Delay(time_left());
-		next_time += 30;
+		next_time += 16;
 	}
 	fout.close();
 	delete g;
@@ -214,13 +220,13 @@ std::string HexDec2String(int hexIn) {
 }
 
 void MainLoop(){
-	const int cyclesPerUpdate = 69905;
+	const int cyclesPerUpdate = 70224;
 	int cycles = 0;
 
 	while (cycles < cyclesPerUpdate){
-		fout << HexDec2String(PC) << " ";
+//		fout << HexDec2String(PC) << " : " << HexDec2String(m->readByte(PC));
 		int lastOP = OP(m->readByte(PC++));
-		fout << std::endl;
+//		fout << std::endl;
 		if (lastOP == -1){
 			printf("error");
 			fout.close();
@@ -276,10 +282,28 @@ void SBC(uint8* reg){
 	F.set(FLAG_SUB);
 }
 
+//Adds HL and 16 bit register and stores in HL.
+void ADDHL(uint16 reg){
+	uint32 temp = R_HL + reg; 
+	F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
+	F.set(FLAG_C, (temp > 0xFFFFu));
+	L = temp & 0xFFu;
+	H = temp >> 8 & 0xFFu;
+	F.set(FLAG_SUB, false);
+}
+
+void INC(uint8* reg){
+	(*reg) += 1;
+	F.set(FLAG_ZERO, (*reg) == 0);
+	F.set(FLAG_SUB, false);
+	F.set(FLAG_HC, ((*reg) & 0xFu) == 0);
+}
+
 int OP(uint8 code){
 	uint16 nn = 0;
 	uint32 temp = 0;
 	uint8 temp2 = 0;
+	int signedTemp = 0;
 	switch (code){
 	case 0x00u: //NOP (do nothing)
 		return 4;
@@ -296,10 +320,7 @@ int OP(uint8 code){
 		C = temp & 0xFFu;
 		return 8;
 	case 0x04u: //INC B Increment B. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		B += 1;
-		F.set(FLAG_ZERO, B == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (B & 0xFu) == 0);
+		INC(&B);
 		return 4;
 	case 0x05u: //DEC B Decrement B. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		B -= 1;
@@ -311,11 +332,12 @@ int OP(uint8 code){
 		B = m->readByte(PC++);
 		return 8;
 	case 0x07u: //RLCA Rotate A left. Flags: set Z if zero, N and H reset, C contains the old bit 7
-		F.set(FLAG_C, A > 0x7Fu);
-		A = ((A << 1) & 0xFFu) | (A >> 7);
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, false);
+//		F.set(FLAG_C, A > 0x7Fu);
+//		A = ((A << 1) & 0xFFu) | (A >> 7);
+//		F.set(FLAG_ZERO, A == 0);
+//		F.set(FLAG_SUB, false);
+//		F.set(FLAG_HC, false);
+		RLC(&A);
 		return 4;
 	case 0x08u: //LD (nn),SP Load value at SP into 16-bit immediate address (nn)
 		nn = m->readByte(PC++);
@@ -324,12 +346,7 @@ int OP(uint8 code){
 		m->writeByte(nn + 1, SP >> 8);
 		return 20;
 	case 0x09u: //ADD HL,BC Add BC to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
-		temp = R_HL + R_BC;
-		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
-		F.set(FLAG_C, (temp > 0xFFFFu));
-		L = temp & 0xFFu;
-		H = temp >> 8 & 0xFFu;
-		F.set(FLAG_SUB, false);
+		ADDHL(R_BC);
 		return 8;
 	case 0x0Au: //LD A,(BC) load value at (BC) into A
 		A = m->readByte(R_BC);
@@ -340,10 +357,7 @@ int OP(uint8 code){
 		C = temp & 0xFFu;
 		return 8;
 	case 0x0Cu: //INC C Increment C. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		C += 1;
-		F.set(FLAG_ZERO, C == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (C & 0xFu) == 0);
+		INC(&C);
 		return 4;
 	case 0x0Du: //DEC C Decrement C. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		C -= 1;
@@ -355,11 +369,12 @@ int OP(uint8 code){
 		C = m->readByte(PC++);
 		return 8;
 	case 0x0Fu: //RRCA Rotate A right. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0;
-		F.set(FLAG_C, A & 0x1u);
-		A = (A >> 1) | ((A & 0x1u) << 7);
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, false);
+//		F.set(FLAG_C, A & 0x1u);
+//		A = (A >> 1) | ((A & 0x1u) << 7);
+//		F.set(FLAG_ZERO, A == 0);
+//		F.set(FLAG_SUB, false);
+//		F.set(FLAG_HC, false);
+		RRC(&A);
 		return 4;
 	case 0x10u: //STOP Halt CPU and LCD display until button pressed. Check for additional 0x00u after the opcode
 		handleStop();
@@ -377,10 +392,7 @@ int OP(uint8 code){
 		E = temp & 0xFFu;
 		return 8;
 	case 0x14u: //INC D Increment D. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		D += 1;
-		F.set(FLAG_ZERO, D == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (D & 0xFu) == 0);
+		INC(&D);
 		return 4;
 	case 0x15u: //DEC D Decrement D. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		D -= 1;
@@ -392,23 +404,19 @@ int OP(uint8 code){
 		D = m->readByte(PC++);
 		return 8;
 	case 0x17u: //RLA Rotate A left through Carry Flag. Flags: Z - set if result is zero; N,H - reset; C - contains old bit 7
-		temp = (F[FLAG_C]) ? 1 : 0; //old carry to go to A's bit one
-		F.set(FLAG_C, A > 0x7Fu);
-		A = ((A << 1) & 0xFFu) | (temp & 0x1u);
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, false);
+//		temp = (F[FLAG_C]) ? 1 : 0; //old carry to go to A's bit one
+//		F.set(FLAG_C, A > 0x7Fu);
+//		A = ((A << 1) & 0xFFu) | (temp & 0x1u);
+//		F.set(FLAG_ZERO, A == 0);
+//		F.set(FLAG_SUB, false);
+//		F.set(FLAG_HC, false);
+		RL(&A);
 		return 4;
 	case 0x18u: //JR n Jump to PC+n where n is an 8-bit immediate
 		PC += ((_int8)m->readByte(PC++));
 		return 12;
 	case 0x19u: //ADD HL,DE Add DE to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
-		temp = R_HL + R_DE;
-		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
-		F.set(FLAG_C, (temp > 0xFFFFu));
-		L = temp & 0xFFu;
-		H = temp >> 8 & 0xFFu;
-		F.set(FLAG_SUB, false);
+		ADDHL(R_DE);
 		return 8;
 	case 0x1Au: //LD A,(DE) Load value at (DE) to A
 		A = m->readByte(R_DE);
@@ -419,10 +427,7 @@ int OP(uint8 code){
 		E = temp & 0xFFu;
 		return 8;
 	case 0x1Cu: //INC E Increment E. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		E += 1;
-		F.set(FLAG_ZERO, E == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (E & 0xFu) == 0);
+		INC(&E);
 		return 4;
 	case 0x1Du: //DEC E Decrement E. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		E -= 1;
@@ -434,12 +439,13 @@ int OP(uint8 code){
 		E = m->readByte(PC++);
 		return 8;
 	case 0x1Fu: //RRA Rotate A right through Carry flag. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0
-		temp = (F[FLAG_C]) ? 0x80u : 0; //old carry to go to A's bit seven
-		F.set(FLAG_C, A & 0x01u);
-		A = ((A >> 1) & 0x7Fu) | temp;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, false);
+//		temp = (F[FLAG_C]) ? 0x80u : 0; //old carry to go to A's bit seven
+//		F.set(FLAG_C, A & 0x01u);
+//		A = ((A >> 1) & 0x7Fu) | temp;
+//		F.set(FLAG_ZERO, A == 0);
+//		F.set(FLAG_SUB, false);
+//		F.set(FLAG_HC, false);
+		RR(&A);
 		return 4;
 	case 0x20u: //JR NZ,n Jump to PC+n if Z flag == 0
 		if (!F[FLAG_ZERO]){
@@ -466,10 +472,7 @@ int OP(uint8 code){
 		L = temp & 0xFFu;
 		return 8;
 	case 0x24u: //INC H Increment H. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		H += 1;
-		F.set(FLAG_ZERO, H == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (H & 0xFu) == 0);
+		INC(&H);
 		return 4;
 	case 0x25u: //DEC H Decrement H. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		H -= 1;
@@ -514,12 +517,7 @@ int OP(uint8 code){
 			return 8;
 		}
 	case 0x29u: //ADD HL,HL Add HL to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
-		temp = R_HL + R_HL;
-		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
-		F.set(FLAG_C, (temp > 0xFFFFu));
-		L = temp & 0xFFu;
-		H = temp >> 8 & 0xFFu;
-		F.set(FLAG_SUB, false);
+		ADDHL(R_HL);
 		return 8;
 	case 0x2Au: //LDI A,(HL) Load value at (HL) into A, increment HL
 		A = m->readByte(R_HL);
@@ -533,10 +531,7 @@ int OP(uint8 code){
 		L = temp & 0xFFu;
 		return 8;
 	case 0x2Cu: //INC L Increment L. Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		L += 1;
-		F.set(FLAG_ZERO, L == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (L & 0xFu) == 0);
+		INC(&L);
 		return 4;
 	case 0x2Du: //DEC L Decrement L. Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		L -= 1;
@@ -577,10 +572,11 @@ int OP(uint8 code){
 		SP++;
 		return 8;
 	case 0x34u: //INC (HL) Increment (HL). Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
-		m->writeByte(R_HL, m->readByte(R_HL) + 1);
-		F.set(FLAG_ZERO, m->readByte(R_HL) == 0);
-		F.set(FLAG_SUB, false);
-		F.set(FLAG_HC, (m->readByte(R_HL) & 0xFu) == 0);
+	{
+		uint8 n = m->readByte(R_HL);
+		INC(&n);
+		m->writeByte(R_HL, n);
+	}
 		return 12;
 	case 0x35u: //DEC (HL) Decrement (HL). Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
 		m->writeByte(R_HL, m->readByte(R_HL) - 1);
@@ -606,12 +602,7 @@ int OP(uint8 code){
 			return 8;
 		}
 	case 0x39u: //ADD HL,SP Add SP to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
-		temp = R_HL + SP;
-		F.set(FLAG_HC, (R_HL & 0xFFFu) > (temp & 0xFFFu));
-		F.set(FLAG_C, (temp > 0xFFFFu));
-		L = temp & 0xFFu;
-		H = temp >> 8 & 0xFFu;
-		F.set(FLAG_SUB, false);
+		ADDHL(SP);
 		return 8;
 	case 0x3Au: //LDD A,(HL) Put value at (HL) into A, decrement HL
 		A = m->readByte(R_HL);
@@ -1094,52 +1085,52 @@ int OP(uint8 code){
 		F.reset(FLAG_SUB);
 		return 4;
 	case 0xB8u: //CP B Compare A and B. Flags: Z - set if A == B; N - Set; H - set if no borrow from bit 4; C - Set if A < B; 
-		temp = A - B;
-		F.set(FLAG_HC, (temp & 0xFu) > (A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - B;
+		F.set(FLAG_HC, (signedTemp & 0xFu) > (A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xB9u: //CP C Compare A and C. Flags: Z - set if A == C; N - Set; H - set if no borrow from bit 4; C - Set if A < C; 
-		temp = A - C;
-		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - C;
+		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xBAu: //CP D Compare A and D. Flags: Z - set if A == D; N - Set; H - set if no borrow from bit 4; C - Set if A < D;  
-		temp = A - D;
-		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - D;
+		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xBBu: //CP E Compare A and E. Flags: Z - set if A == E; N - Set; H - set if no borrow from bit 4; C - Set if A < E;  
-		temp = A - E;
-		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - E;
+		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xBCu: //CP H Compare A and H. Flags: Z - set if A == H; N - Set; H - set if no borrow from bit 4; C - Set if A < H;  
-		temp = A - H;
-		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - H;
+		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xBDu: //CP L Compare A and L. Flags: Z - set if A == L; N - Set; H - set if no borrow from bit 4; C - Set if A < L;  
-		temp = A - L;
-		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - L;
+		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xBEu: //CP (HL) Compare A and (HL). Flags: Z - set if A == (HL); N - Set; H - set if no borrow from bit 4; C - Set if A < (HL);  
-		temp = A - m->readByte(R_HL);
-		F.set(FLAG_HC, (temp & 0xFu) >(A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - m->readByte(R_HL);
+		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 8;
 	case 0xBFu: //CP A Compare A and A. Flags: Z - set if A == A; N - Set; H - set if no borrow from bit 4; C - Set if A < A; 
@@ -1403,11 +1394,11 @@ int OP(uint8 code){
 		printf("Illegal OP: 0xDDu at PC: %u", PC);
 		return -1;
 	case 0xDEu: //SBC n Subtract 8-bit immediate n plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp = A - m->readByte(PC++) - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (temp & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, temp == 0);
+		signedTemp = A - m->readByte(PC++) - ((F[FLAG_C]) ? 1 : 0);
+		F.set(FLAG_HC, (A & 0xFu) < (signedTemp & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		A = signedTemp & 0xFFu;
+		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_SUB, true);
 		return 8;
 	case 0xDFu: //RST 18H Push PC onto the stack, jump to 0x0018u
@@ -1569,10 +1560,10 @@ int OP(uint8 code){
 		printf("Illegal OP: 0xFDu at PC: %u", PC);
 		return -1;
 	case 0xFEu: //CP n Compare A and 8-bit immediate n. Flags: Z - set if A == n; N - Set; H - set if no borrow from bit 4; C - Set if A < n; 
-		temp = A - m->readByte(PC++);
-		F.set(FLAG_HC, (temp & 0xFu) > (A & 0xFu));
-		F.set(FLAG_C, temp < 0);
-		F.set(FLAG_ZERO, A == 0);
+		signedTemp = A - m->readByte(PC++);
+		F.set(FLAG_HC, (signedTemp & 0xFu) > (A & 0xFu));
+		F.set(FLAG_C, signedTemp < 0);
+		F.set(FLAG_ZERO, signedTemp == 0);
 		F.set(FLAG_SUB);
 		return 8;
 	case 0xFFu: //RST 38H, Push PC onto the stack, jump to 0x0038u
@@ -1713,6 +1704,7 @@ void SRA(uint8* reg){	//Shift right through carry, MSB doesn't change
 	_int8 MSB = *reg & 0x80u;
 	*reg >>= 1;
 	*reg |= MSB;
+	F.set(FLAG_ZERO, (*reg) == 0);
 }
 uint8 SRA(uint8 reg){	//Shift right through carry, MSB doesn't change
 	F.reset();
@@ -1722,6 +1714,7 @@ uint8 SRA(uint8 reg){	//Shift right through carry, MSB doesn't change
 	_int8 MSB = reg & 0x80u;
 	reg >>= 1;
 	reg |= MSB;
+	F.set(FLAG_ZERO, reg == 0);
 	return reg;
 }
 
