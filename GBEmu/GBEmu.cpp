@@ -332,12 +332,11 @@ int OP(uint8 code){
 		B = m->readByte(PC++);
 		return 8;
 	case 0x07u: //RLCA Rotate A left. Flags: set Z if zero, N and H reset, C contains the old bit 7
-//		F.set(FLAG_C, A > 0x7Fu);
-//		A = ((A << 1) & 0xFFu) | (A >> 7);
-//		F.set(FLAG_ZERO, A == 0);
-//		F.set(FLAG_SUB, false);
-//		F.set(FLAG_HC, false);
-		RLC(&A);
+		F.set(FLAG_C, A > 0x7Fu);
+		A = ((A << 1) & 0xFFu) | (A >> 7);
+		F.set(FLAG_ZERO, false);
+		F.set(FLAG_SUB, false);
+		F.set(FLAG_HC, false);
 		return 4;
 	case 0x08u: //LD (nn),SP Load value at SP into 16-bit immediate address (nn)
 		nn = m->readByte(PC++);
@@ -369,12 +368,11 @@ int OP(uint8 code){
 		C = m->readByte(PC++);
 		return 8;
 	case 0x0Fu: //RRCA Rotate A right. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0;
-//		F.set(FLAG_C, A & 0x1u);
-//		A = (A >> 1) | ((A & 0x1u) << 7);
-//		F.set(FLAG_ZERO, A == 0);
-//		F.set(FLAG_SUB, false);
-//		F.set(FLAG_HC, false);
-		RRC(&A);
+		F.set(FLAG_C, A & 0x1u);
+		A = (A >> 1) | ((A & 0x1u) << 7);
+		F.set(FLAG_ZERO, false);
+		F.set(FLAG_SUB, false);
+		F.set(FLAG_HC, false);
 		return 4;
 	case 0x10u: //STOP Halt CPU and LCD display until button pressed. Check for additional 0x00u after the opcode
 		handleStop();
@@ -404,13 +402,12 @@ int OP(uint8 code){
 		D = m->readByte(PC++);
 		return 8;
 	case 0x17u: //RLA Rotate A left through Carry Flag. Flags: Z - set if result is zero; N,H - reset; C - contains old bit 7
-//		temp = (F[FLAG_C]) ? 1 : 0; //old carry to go to A's bit one
-//		F.set(FLAG_C, A > 0x7Fu);
-//		A = ((A << 1) & 0xFFu) | (temp & 0x1u);
-//		F.set(FLAG_ZERO, A == 0);
-//		F.set(FLAG_SUB, false);
-//		F.set(FLAG_HC, false);
-		RL(&A);
+		temp = (F[FLAG_C]) ? 1 : 0; //old carry to go to A's bit one
+		F.set(FLAG_C, A > 0x7Fu);
+		A = ((A << 1) & 0xFFu) | (temp & 0x1u);
+		F.set(FLAG_ZERO, false);
+		F.set(FLAG_SUB, false);
+		F.set(FLAG_HC, false);
 		return 4;
 	case 0x18u: //JR n Jump to PC+n where n is an 8-bit immediate
 		PC += ((_int8)m->readByte(PC++));
@@ -439,13 +436,12 @@ int OP(uint8 code){
 		E = m->readByte(PC++);
 		return 8;
 	case 0x1Fu: //RRA Rotate A right through Carry flag. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0
-//		temp = (F[FLAG_C]) ? 0x80u : 0; //old carry to go to A's bit seven
-//		F.set(FLAG_C, A & 0x01u);
-//		A = ((A >> 1) & 0x7Fu) | temp;
-//		F.set(FLAG_ZERO, A == 0);
-//		F.set(FLAG_SUB, false);
-//		F.set(FLAG_HC, false);
-		RR(&A);
+		temp = (F[FLAG_C]) ? 0x80u : 0; //old carry to go to A's bit seven
+		F.set(FLAG_C, A & 0x01u);
+		A = ((A >> 1) & 0x7Fu) | temp;
+		F.set(FLAG_ZERO, false);
+		F.set(FLAG_SUB, false);
+		F.set(FLAG_HC, false);
 		return 4;
 	case 0x20u: //JR NZ,n Jump to PC+n if Z flag == 0
 		if (!F[FLAG_ZERO]){
@@ -564,7 +560,7 @@ int OP(uint8 code){
 		return 12;
 	case 0x32u: //LDD (HL),A Put A into (HL), decrement HL
 		m->writeByte(R_HL, A);
-		temp = R_DE - 1;
+		temp = R_HL - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
 		return 8;
@@ -606,7 +602,7 @@ int OP(uint8 code){
 		return 8;
 	case 0x3Au: //LDD A,(HL) Put value at (HL) into A, decrement HL
 		A = m->readByte(R_HL);
-		temp = R_DE - 1;
+		temp = R_HL - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
 		return 8;
