@@ -218,4 +218,5 @@ pip-log.txt
 *.gb
 *.dll
 cpu_instrs/*
+instr_timing/*
 GBEmu/output.txt

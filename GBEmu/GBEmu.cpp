@@ -163,17 +163,19 @@ void requestInterrupt(interrupts i){
 	m->writeByte(0xFF0Fu, IF | (0x1u << i));
 }
 
-void handleInterrupts(){
+bool handleInterrupts(){
 	if (interruptEnabled){
 		if (IF > 0){	//if there are any flags set in IF
 			for (int i = 0; i < 5; i++){	//go from bit 0 to bit 5, in order of priority
 				if ( ((IF & (1 << i)) > 0) && 
 					 ((IE & (1 << i)) > 0) ){	//if the specific interrupt flag is set and it is enabled
 					serviceInterrupt(i);
+					return true;
 				}
 			}
 		}
 	}
+	return false;
 }
 
 void updateTimer(int cycles){
@@ -225,12 +227,15 @@ void MainLoop(){
 
 	while (cycles < cyclesPerUpdate){
 //		fout << HexDec2String(PC) << " : " << HexDec2String(m->readByte(PC));
+		int oldPC = PC;
 		int lastOP = OP(m->readByte(PC++));
 //		fout << std::endl;
 		if (lastOP == -1){
-			printf("error");
+			printf("Error: %4X %X", PC-1, m->readByte(PC-1));
 			fout.close();
 		}
+		if (PC == 0xC2A6)
+			printf("");
 		updateTimer(lastOP);
 		g->Step(lastOP);
 		handleInterrupts();
@@ -300,6 +305,9 @@ void INC(uint8* reg){
 }
 
 int OP(uint8 code){
+	if (code == 0x76){
+		printf("");
+	}
 	uint16 nn = 0;
 	uint32 temp = 0;
 	uint8 temp2 = 0;
@@ -480,27 +488,28 @@ int OP(uint8 code){
 		H = m->readByte(PC++);
 		return 8;
 	case 0x27u: //DAA Decimal adjust A. Flags:Z - set if A is zero; H - reset; C - set or reset, depending on operation
-		if (!F[FLAG_SUB]){
-			if (F[FLAG_C] || A > 0x99u){
-				A = (A + 0x60u) & 0xFFu;
-				F.set(FLAG_C, true);
+		temp = A;
+		if (!F[FLAG_SUB]){	//Previous instruction was an add
+			if (F[FLAG_HC] || (temp & 0xF) > 9){
+				temp += 0x06u;
 			}
-			if (F[FLAG_HC] || (A & 0x0Fu) > 0x09u){
-				A = (A + 0x06u) & 0xFFu;
-				F.set(FLAG_HC, false);
+			if (F[FLAG_C] || temp > 0x9Fu){
+				temp += 0x60u;
 			}
 		}
-		else if (F[FLAG_C] && F[FLAG_HC]){
-			A = (A = 0x9Au) & 0xFFu;
-			F.set(FLAG_HC, false);
+		else{				//Previous instruction was a subtract
+			if (F[FLAG_HC]){
+				temp = (temp - 6) & 0xFFu;
+			}
+			if (F[FLAG_C]){
+				temp -= 0x60u;
+			}
 		}
-		else if (F[FLAG_C]){
-			A = (A + 0xA0u) & 0xFFu;
+		if ((temp & 0x100u) == 0x100u){
+			F.set(FLAG_C);
 		}
-		else if (F[FLAG_HC]){
-			A = (A + 0xFAu) & 0xFFu;
-			F.set(FLAG_HC, false);
-		}
+		A = (uint8)(temp & 0xFFu);
+		F.reset(FLAG_HC);
 		F.set(FLAG_ZERO, A == 0);
 		return 4;
 	case 0x28u: //JR Z,n Jump to PC+n if Z flag == 1
@@ -522,7 +531,7 @@ int OP(uint8 code){
 		L = temp & 0xFFu;
 		return 8;
 	case 0x2Bu: //DEC HL Decrement HL
-		temp = R_DE - 1;
+		temp = R_HL - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
 		return 8;
@@ -657,7 +666,7 @@ int OP(uint8 code){
 		return 4;
 	case 0x49u: //LD C,C Load value at C into C (do nothing)
 		return 4;
-	case 0x4A4u: //LD C,D Load value at D into C
+	case 0x4Au: //LD C,D Load value at D into C
 		C = D;
 		return 4;
 	case 0x4Bu: //LD C,E Load value at E into C
@@ -1265,12 +1274,8 @@ int OP(uint8 code){
 		PC = temp & 0xFFFFu;
 		return 24;
 	case 0xCEu: //ADC A,n Add 8-bit immediate n + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + m->readByte(PC++) + ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
-		F.set(FLAG_C, temp > 0xFFu);
-		A = temp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, false);
+		temp2 = m->readByte(PC++);
+		ADC(&temp2);
 		return 8;
 	case 0xCFu: //RST 08H Push PC onto the stack, jump to 0x0008u
 		SP -= 1;
@@ -1390,12 +1395,8 @@ int OP(uint8 code){
 		printf("Illegal OP: 0xDDu at PC: %u", PC);
 		return -1;
 	case 0xDEu: //SBC n Subtract 8-bit immediate n plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		signedTemp = A - m->readByte(PC++) - ((F[FLAG_C]) ? 1 : 0);
-		F.set(FLAG_HC, (A & 0xFu) < (signedTemp & 0xFu));
-		F.set(FLAG_C, signedTemp < 0);
-		A = signedTemp & 0xFFu;
-		F.set(FLAG_ZERO, A == 0);
-		F.set(FLAG_SUB, true);
+		temp2 = m->readByte(PC++);
+		SBC(&temp2);
 		return 8;
 	case 0xDFu: //RST 18H Push PC onto the stack, jump to 0x0018u
 		SP -= 1;
@@ -1448,7 +1449,7 @@ int OP(uint8 code){
 		F.reset();
 		unsigned int test = SP + n;
 		F.set(FLAG_HC, ((SP & 0xF) + (n & 0xF)) > 0xF);
-		F.set(FLAG_C, test > 0xFFFF);
+		F.set(FLAG_C, ((SP & 0xFF) + (n & 0xFF)) > 0xFF);
 		SP = val;
 	}
 		return 16;
@@ -1534,7 +1535,7 @@ int OP(uint8 code){
 
 		unsigned int test = n + SP;
 		F.reset();
-		F.set(FLAG_C, test > 0xFFFF);
+		F.set(FLAG_C, ((SP & 0xFF) + (n & 0xFF)) > 0xFF);
 		F.set(FLAG_HC, ((SP & 0xF) + (n & 0xF)) > 0xF);
 	}
 		return 12;
@@ -2554,7 +2555,21 @@ void handleStop(){
 }
 
 void handleHalt(){
+	bool interrupted = false;
+	while (!interrupted){
+		const int cyclesPerUpdate = 70224;
+		int cycles = 0;
 
+		while (cycles < cyclesPerUpdate){
+			updateTimer(4);
+			g->Step(4);
+			cycles += 4;
+			interrupted = IF > 0;
+			if (interrupted)
+				break;
+		}
+		g->Update();
+	}
 }
 
 //Load the given ROM into Emu memory
