@@ -5,7 +5,15 @@
 #include "MMU.h"
 #include <SDL.h>
 extern MMU* m;
+extern GPU* g;
+extern bool interruptEnabled;
+extern int dividerCounter;
 extern int timerCounter;
+extern int timerPeriod;
+extern unsigned _int16 PC;
+extern unsigned _int16 SP;
+
+extern bool skipTimerUpdate;
 enum interrupts{
 	VBLANK = 0, LCD, TIMER, SERIAL, JOYPAD
 };

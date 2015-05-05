@@ -38,6 +38,7 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 	if (type == MBC3){
 		RTC = new uint8[5];
 	}
+	io[0x04] = 0xAB;
 
 	inBIOS = true;
 	currentRAMBank = 0;
@@ -157,6 +158,9 @@ uint8 MMU::readByte(unsigned _int16 address){
 			if (address >= 0xFF80){
 				//0xFF80-0xFFFF : Working RAM (128 bytes of high speed RAM)
 				return zram[address & 0x7F];
+			}
+			else if (address == 0xFF07){
+				return io[0x07] | 0xF8;
 			}
 			else{
 				//0xFF00-0xFF7F : I/O
@@ -360,18 +364,19 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 					if ((currentTMC & 0x03) != (newTMC & 0x03)){	//clock frequency has changed, so reset the counter for it
 						switch (newTMC & 0x03){
 						case 0x0u:
-							timerCounter = 1024;
+							timerPeriod = 1024;
 							break;
 						case 0x1u:
-							timerCounter = 16;
+							timerPeriod = 16;
 							break;
 						case 0x2u:
-							timerCounter = 64;
+							timerPeriod = 64;
 							break;
 						case 0x3u:
-							timerCounter = 256;
+							timerPeriod = 256;
 							break;
 						}
+						skipTimerUpdate = true;
 					}
 				}
 				else if (address == 0xFF44){
