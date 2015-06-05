@@ -3,22 +3,10 @@
 
 #include "GPU.h"
 #include "MMU.h"
+#include "CPU.h"
 #include <SDL.h>
-extern MMU* m;
-extern GPU* g;
-extern bool interruptEnabled;
-extern int dividerCounter;
-extern int timerCounter;
-extern int timerPeriod;
-extern unsigned _int16 PC;
-extern unsigned _int16 SP;
-
-extern bool skipTimerUpdate;
-enum interrupts{
-	VBLANK = 0, LCD, TIMER, SERIAL, JOYPAD
-};
-void requestInterrupt(interrupts i);
-void MainLoop();
+#include "wx\wx.h"
+#include "GB.h"
 
 #define IE m->readByte(0xFFFF)
 #define IF m->readByte(0xFF0F)
@@ -40,5 +28,26 @@ void MainLoop();
 #define uint8 unsigned _int8
 #define uint16 unsigned _int16
 #define uint32 unsigned _int32
+
+class MainFrame;
+class ImagePanel;
+
+class MainApp : public wxApp{
+
+public:
+	virtual bool OnInit();
+	virtual int OnExit();
+	virtual void Resize(int newWidth, int newHeight);
+	GB* g;
+	MainFrame* frame;
+	void Draw();
+	void KeyUp(int key);
+	void KeyDown(int key);
+	void Update(wxTimerEvent& event);
+	ImagePanel* panel;
+protected:
+	DECLARE_EVENT_TABLE()
+};
+DECLARE_APP(MainApp)
 
 #endif

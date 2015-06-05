@@ -2,9 +2,12 @@
 
 #define uint8 unsigned _int8
 
+class CPU;
+
 class MMU
 {
 private:
+	CPU* c;
 	uint8* rom;		//cartridge ROM
 	uint8* bios;	//contains the startup program for the GB
 	uint8* eram;	//contains the cartridge RAM
@@ -28,6 +31,7 @@ private:
 	MBC3Mode RAMmode;
 	bool ramWriteEnable;
 	bool RTCLatchPossible;
+	void DMATransfer(uint8 value);
 public:
 	enum cartType{
 		MBC1, MBC2, MBC3
@@ -36,9 +40,10 @@ public:
 	MMU(cartType t, int numRom, int numRam, uint8* cartRom);
 	~MMU();
 	uint8 readByte(unsigned _int16 address);
-	uint8 readInstruction(_int16* PC);
+	uint8 readInstruction(unsigned _int16* PC);
 	void writeByte(unsigned _int16 address, uint8 value);
 	uint8 operator[](unsigned _int16 index);
 	void incrementDIV();
 	void incrementLY();
+	void setCPU(CPU* cpu);
 };

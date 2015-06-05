@@ -24,14 +24,58 @@ CPU::CPU()
 	E = 0xD8u;
 	H = 0x01u;
 	L = 0x4Du;
+
+	SP = 0xFFFEu;
+	PC = 0x0100u;
+
+	dividerCounter = 40;
+	timerPeriod = 1024;
 }
 
+void CPU::setMMU(MMU* mem){
+	m = mem;
+	m->writeByte(0xFF05, 0);
+	m->writeByte(0xFF06, 0);
+	m->writeByte(0xFF07, 0);
+	m->writeByte(0xFF10, 0x80u);
+	m->writeByte(0xFF11, 0xBFu);
+	m->writeByte(0xFF12, 0xF3u);
+	m->writeByte(0xFF14, 0xBFu);
+	m->writeByte(0xFF16, 0x3Fu);
+	m->writeByte(0xFF17, 0);
+	m->writeByte(0xFF19, 0xBFu);
+	m->writeByte(0xFF1A, 0x7Fu);
+	m->writeByte(0xFF1B, 0xFFu);
+	m->writeByte(0xFF1C, 0x9Fu);
+	m->writeByte(0xFF1E, 0xBFu);
+	m->writeByte(0xFF20, 0xFFu);
+	m->writeByte(0xFF21, 0);
+	m->writeByte(0xFF22, 0);
+	m->writeByte(0xFF23, 0xBFu);
+	m->writeByte(0xFF24, 0x77u);
+	m->writeByte(0xFF25, 0xF3u);
+	m->writeByte(0xFF26, 0xF1u);
+	m->writeByte(0xFF40, 0x91u);
+	m->writeByte(0xFF42, 0);
+	m->writeByte(0xFF43, 0);
+	m->writeByte(0xFF45, 0);
+	m->writeByte(0xFF47, 0xFCu);
+	m->writeByte(0xFF48, 0xFFu);
+	m->writeByte(0xFF49, 0xFFu);
+	m->writeByte(0xFF4A, 0);
+	m->writeByte(0xFF4B, 0);
+	m->writeByte(0xFFFF, 0);
+}
+
+void CPU::setGPU(GPU* gpu){
+	g = gpu;
+}
 
 CPU::~CPU()
 {
 }
 
-void updateTimer(int cycles){
+void CPU::updateTimer(int cycles){
 	int toAdd = 0;
 	if ((TMC & 0x04u) > 0x00u){	//Bit 2 of TMC indicates an enabled timer
 		timerCounter += cycles;
@@ -323,804 +367,7 @@ uint8 SET(int n, uint8 reg){
 	return reg;
 }
 
-
-void CB(uint8 code){
-	switch (code){
-	case 0x0u:	//RLC B
-		RLC(&B);
-		break;
-	case 0x1u:	//RLC C
-		RLC(&C);
-		break;
-	case 0x2u:	//RLC D
-		RLC(&D);
-		break;
-	case 0x3u:	//RLC E
-		RLC(&E);
-		break;
-	case 0x4u:	//RLC H
-		RLC(&H);
-		break;
-	case 0x5u:	//RLC L
-		RLC(&L);
-		break;
-	case 0x6u:	//RLC (HL)
-		m->writeByte(R_HL, RLC(m->readByte(R_HL)));
-		break;
-	case 0x7u:	//RLC A
-		RLC(&A);
-		break;
-	case 0x8u:	//RRC B
-		RRC(&B);
-		break;
-	case 0x9u:	//RRC C
-		RRC(&C);
-		break;
-	case 0xAu:	//RRC D
-		RRC(&D);
-		break;
-	case 0xBu:	//RRC E
-		RRC(&E);
-		break;
-	case 0xCu:	//RRC H
-		RRC(&H);
-		break;
-	case 0xDu:	//RRC L
-		RRC(&L);
-		break;
-	case 0xEu:	//RRC (HL)
-		m->writeByte(R_HL, RRC(m->readByte(R_HL)));
-		break;
-	case 0xFu:	//RRC A
-		RRC(&A);
-		break;
-	case 0x10u:	//RL B
-		RL(&B);
-		break;
-	case 0x11u:	//RL C
-		RL(&C);
-		break;
-	case 0x12u:	//RL D
-		RL(&D);
-		break;
-	case 0x13u:	//RL E
-		RL(&E);
-		break;
-	case 0x14u:	//RL H
-		RL(&H);
-		break;
-	case 0x15u:	//RL L
-		RL(&L);
-		break;
-	case 0x16u:	//RL (HL)
-		m->writeByte(R_HL, RL(m->readByte(R_HL)));
-		break;
-	case 0x17u:	//RL A
-		RL(&A);
-		break;
-	case 0x18u:	//RR B
-		RR(&B);
-		break;
-	case 0x19u:	//RR C
-		RR(&C);
-		break;
-	case 0x1Au:	//RR D
-		RR(&D);
-		break;
-	case 0x1Bu:	//RR E
-		RR(&E);
-		break;
-	case 0x1Cu:	//RR H
-		RR(&H);
-		break;
-	case 0x1Du:	//RR L
-		RR(&L);
-		break;
-	case 0x1Eu:	//RR (HL)
-		m->writeByte(R_HL, RR(m->readByte(R_HL)));
-		break;
-	case 0x1Fu:	//RR A
-		RR(&A);
-		break;
-	case 0x20u:	//SLA B
-		SLA(&B);
-		break;
-	case 0x21u:	//SLA C
-		SLA(&C);
-		break;
-	case 0x22u:	//SLA D
-		SLA(&D);
-		break;
-	case 0x23u:	//SLA E
-		SLA(&E);
-		break;
-	case 0x24u:	//SLA H
-		SLA(&H);
-		break;
-	case 0x25u:	//SLA L
-		SLA(&L);
-		break;
-	case 0x26u:	//SLA (HL)
-		m->writeByte(R_HL, SLA(m->readByte(R_HL)));
-		break;
-	case 0x27u:	//SLA A
-		SLA(&A);
-		break;
-	case 0x28u:	//SRA B
-		SRA(&B);
-		break;
-	case 0x29u:	//SRA C
-		SRA(&C);
-		break;
-	case 0x2Au:	//SRA D
-		SRA(&D);
-		break;
-	case 0x2Bu:	//SRA E
-		SRA(&E);
-		break;
-	case 0x2Cu:	//SRA H
-		SRA(&H);
-		break;
-	case 0x2Du:	//SRA L
-		SRA(&L);
-		break;
-	case 0x2Eu:	//SRA (HL)
-		m->writeByte(R_HL, SRA(m->readByte(R_HL)));
-		break;
-	case 0x2Fu:	//SRA A
-		SRA(&A);
-		break;
-	case 0x30u:	//SWAP B
-		SWAP(&B);
-		break;
-	case 0x31u:	//SWAP C
-		SWAP(&C);
-		break;
-	case 0x32u:	//SWAP D
-		SWAP(&D);
-		break;
-	case 0x33u:	//SWAP E
-		SWAP(&E);
-		break;
-	case 0x34u:	//SWAP H
-		SWAP(&H);
-		break;
-	case 0x35u:	//SWAP L
-		SWAP(&L);
-		break;
-	case 0x36u:	//SWAP (HL)
-		m->writeByte(R_HL, SWAP(m->readByte(R_HL)));
-		break;
-	case 0x37u:	//SWAP A
-		SWAP(&A);
-		break;
-	case 0x38u:	//SRL B
-		SRL(&B);
-		break;
-	case 0x39u:	//SRL C
-		SRL(&C);
-		break;
-	case 0x3Au:	//SRL D
-		SRL(&D);
-		break;
-	case 0x3Bu:	//SRL E
-		SRL(&E);
-		break;
-	case 0x3Cu:	//SRL H
-		SRL(&H);
-		break;
-	case 0x3Du:	//SRL L
-		SRL(&L);
-		break;
-	case 0x3Eu:	//SRL (HL)
-		m->writeByte(R_HL, SRL(m->readByte(R_HL)));
-		break;
-	case 0x3Fu:	//SRL A
-		SRL(&A);
-		break;
-	case 0x40u:	//BIT 0,B
-		BIT(0, &B);
-		break;
-	case 0x41u:	//BIT 0,C
-		BIT(0, &C);
-		break;
-	case 0x42u:	//BIT 0,D
-		BIT(0, &D);
-		break;
-	case 0x43u:	//BIT 0,E
-		BIT(0, &E);
-		break;
-	case 0x44u:	//BIT 0,H
-		BIT(0, &H);
-		break;
-	case 0x45u:	//BIT 0,L
-		BIT(0, &L);
-		break;
-	case 0x46u:	//BIT 0,(HL)
-		BIT(0, m->readByte(R_HL));
-		break;
-	case 0x47u:	//BIT 0,A
-		BIT(0, &A);
-		break;
-	case 0x48u:	//BIT 1,B
-		BIT(1, &B);
-		break;
-	case 0x49u:	//BIT 1,C
-		BIT(1, &C);
-		break;
-	case 0x4Au:	//BIT 1,D
-		BIT(1, &D);
-		break;
-	case 0x4Bu:	//BIT 1,E
-		BIT(1, &E);
-		break;
-	case 0x4Cu:	//BIT 1,H
-		BIT(1, &H);
-		break;
-	case 0x4Du:	//BIT 1,L
-		BIT(1, &L);
-		break;
-	case 0x4Eu:	//BIT 1,(HL)
-		BIT(1, m->readByte(R_HL));
-		break;
-	case 0x4Fu:	//BIT 1,A
-		BIT(1, &A);
-		break;
-	case 0x50u:	//BIT 2,B
-		BIT(2, &B);
-		break;
-	case 0x51u:	//BIT 2,C
-		BIT(2, &C);
-		break;
-	case 0x52u:	//BIT 2,D
-		BIT(2, &D);
-		break;
-	case 0x53u:	//BIT 2,E
-		BIT(2, &E);
-		break;
-	case 0x54u:	//BIT 2,H
-		BIT(2, &H);
-		break;
-	case 0x55u:	//BIT 2,L
-		BIT(2, &L);
-		break;
-	case 0x56u:	//BIT 2,(HL)
-		BIT(2, m->readByte(R_HL));
-		break;
-	case 0x57u:	//BIT 2,A
-		BIT(2, &A);
-		break;
-	case 0x58u:	//BIT 3,B
-		BIT(3, &B);
-		break;
-	case 0x59u:	//BIT 3,C
-		BIT(3, &C);
-		break;
-	case 0x5Au:	//BIT 3,D
-		BIT(3, &D);
-		break;
-	case 0x5Bu:	//BIT 3,E
-		BIT(3, &E);
-		break;
-	case 0x5Cu:	//BIT 3,H
-		BIT(3, &H);
-		break;
-	case 0x5Du:	//BIT 3,L
-		BIT(3, &L);
-		break;
-	case 0x5Eu:	//BIT 3,(HL)
-		BIT(3, m->readByte(R_HL));
-		break;
-	case 0x5Fu:	//BIT 3,A
-		BIT(3, &A);
-		break;
-	case 0x60u:	//BIT 4,B
-		BIT(4, &B);
-		break;
-	case 0x61u:	//BIT 4,C
-		BIT(4, &C);
-		break;
-	case 0x62u:	//BIT 4,D
-		BIT(4, &D);
-		break;
-	case 0x63u:	//BIT 4,E
-		BIT(4, &E);
-		break;
-	case 0x64u:	//BIT 4,H
-		BIT(4, &H);
-		break;
-	case 0x65u:	//BIT 4,L
-		BIT(4, &L);
-		break;
-	case 0x66u:	//BIT 4,(HL)
-		BIT(4, m->readByte(R_HL));
-		break;
-	case 0x67u:	//BIT 4,A
-		BIT(4, &A);
-		break;
-	case 0x68u:	//BIT 5,B
-		BIT(5, &B);
-		break;
-	case 0x69u:	//BIT 5,C
-		BIT(5, &C);
-		break;
-	case 0x6Au:	//BIT 5,D
-		BIT(5, &D);
-		break;
-	case 0x6Bu:	//BIT 5,E
-		BIT(5, &E);
-		break;
-	case 0x6Cu:	//BIT 5,H
-		BIT(5, &H);
-		break;
-	case 0x6Du:	//BIT 5,L
-		BIT(5, &L);
-		break;
-	case 0x6Eu:	//BIT 5,(HL)
-		BIT(5, m->readByte(R_HL));
-		break;
-	case 0x6Fu:	//BIT 5,A
-		BIT(5, &A);
-		break;
-	case 0x70u:	//BIT 6,B
-		BIT(6, &B);
-		break;
-	case 0x71u:	//BIT 6,C
-		BIT(6, &C);
-		break;
-	case 0x72u:	//BIT 6,D
-		BIT(6, &D);
-		break;
-	case 0x73u:	//BIT 6,E
-		BIT(6, &E);
-		break;
-	case 0x74u:	//BIT 6,H
-		BIT(6, &H);
-		break;
-	case 0x75u:	//BIT 6,L
-		BIT(6, &L);
-		break;
-	case 0x76u:	//BIT 6,(HL)
-		BIT(6, m->readByte(R_HL));
-		break;
-	case 0x77u:	//BIT 6,A
-		BIT(6, &A);
-		break;
-	case 0x78u:	//BIT 7,B
-		BIT(7, &B);
-		break;
-	case 0x79u:	//BIT 7,C
-		BIT(7, &C);
-		break;
-	case 0x7Au:	//BIT 7,D
-		BIT(7, &D);
-		break;
-	case 0x7Bu:	//BIT 7,E
-		BIT(7, &E);
-		break;
-	case 0x7Cu:	//BIT 7,H
-		BIT(7, &H);
-		break;
-	case 0x7Du:	//BIT 7,L
-		BIT(7, &L);
-		break;
-	case 0x7Eu:	//BIT 7,(HL)
-		BIT(7, m->readByte(R_HL));
-		break;
-	case 0x7Fu:	//BIT 7,A
-		BIT(7, &A);
-		break;
-	case 0x80u:	//RES 0,B
-		RES(0, &B);
-		break;
-	case 0x81u:	//RES 0,C
-		RES(0, &C);
-		break;
-	case 0x82u:	//RES 0,D
-		RES(0, &D);
-		break;
-	case 0x83u:	//RES 0,E
-		RES(0, &E);
-		break;
-	case 0x84u:	//RES 0,H
-		RES(0, &H);
-		break;
-	case 0x85u:	//RES 0,L
-		RES(0, &L);
-		break;
-	case 0x86u:	//RES 0,(HL)
-		m->writeByte(R_HL, RES(0, m->readByte(R_HL)));
-		break;
-	case 0x87u:	//RES 0,A
-		RES(0, &A);
-		break;
-	case 0x88u:	//RES 1,B
-		RES(1, &B);
-		break;
-	case 0x89u:	//RES 1,C
-		RES(1, &C);
-		break;
-	case 0x8Au:	//RES 1,D
-		RES(1, &D);
-		break;
-	case 0x8Bu:	//RES 1,E
-		RES(1, &E);
-		break;
-	case 0x8Cu:	//RES 1,H
-		RES(1, &H);
-		break;
-	case 0x8Du:	//RES 1,L
-		RES(1, &L);
-		break;
-	case 0x8Eu:	//RES 1,(HL)
-		m->writeByte(R_HL, RES(1, m->readByte(R_HL)));
-		break;
-	case 0x8Fu:	//RES 1,A
-		RES(1, &A);
-		break;
-	case 0x90u:	//RES 2,B
-		RES(2, &B);
-		break;
-	case 0x91u:	//RES 2,C
-		RES(2, &C);
-		break;
-	case 0x92u:	//RES 2,D
-		RES(2, &D);
-		break;
-	case 0x93u:	//RES 2,E
-		RES(2, &E);
-		break;
-	case 0x94u:	//RES 2,H
-		RES(2, &H);
-		break;
-	case 0x95u:	//RES 2,L
-		RES(2, &L);
-		break;
-	case 0x96u:	//RES 2,(HL)
-		m->writeByte(R_HL, RES(2, m->readByte(R_HL)));
-		break;
-	case 0x97u:	//RES 2,A
-		RES(2, &A);
-		break;
-	case 0x98u:	//RES 3,B
-		RES(3, &B);
-		break;
-	case 0x99u:	//RES 3,C
-		RES(3, &C);
-		break;
-	case 0x9Au:	//RES 3,D
-		RES(3, &D);
-		break;
-	case 0x9Bu:	//RES 3,E
-		RES(3, &E);
-		break;
-	case 0x9Cu:	//RES 3,H
-		RES(3, &H);
-		break;
-	case 0x9Du:	//RES 3,L
-		RES(3, &L);
-		break;
-	case 0x9Eu:	//RES 3,(HL)
-		m->writeByte(R_HL, RES(3, m->readByte(R_HL)));
-		break;
-	case 0x9Fu:	//RES 3,A
-		RES(3, &A);
-		break;
-	case 0xA0u:	//RES 4,B
-		RES(4, &B);
-		break;
-	case 0xA1u:	//RES 4,C
-		RES(4, &C);
-		break;
-	case 0xA2u:	//RES 4,D
-		RES(4, &D);
-		break;
-	case 0xA3u:	//RES 4,E
-		RES(4, &E);
-		break;
-	case 0xA4u:	//RES 4,H
-		RES(4, &H);
-		break;
-	case 0xA5u:	//RES 4,L
-		RES(4, &L);
-		break;
-	case 0xA6u:	//RES 4,(HL)
-		m->writeByte(R_HL, RES(4, m->readByte(R_HL)));
-		break;
-	case 0xA7u:	//RES 4,A
-		RES(4, &A);
-		break;
-	case 0xA8u:	//RES 5,B
-		RES(5, &B);
-		break;
-	case 0xA9u:	//RES 5,C
-		RES(5, &C);
-		break;
-	case 0xAAu:	//RES 5,D
-		RES(5, &D);
-		break;
-	case 0xABu:	//RES 5,E
-		RES(5, &E);
-		break;
-	case 0xACu:	//RES 5,H
-		RES(5, &H);
-		break;
-	case 0xADu:	//RES 5,L
-		RES(5, &L);
-		break;
-	case 0xAEu:	//RES 5,(HL)
-		m->writeByte(R_HL, RES(5, m->readByte(R_HL)));
-		break;
-	case 0xAFu:	//RES 5,A
-		RES(5, &A);
-		break;
-	case 0xB0u:	//RES 6,B
-		RES(6, &B);
-		break;
-	case 0xB1u:	//RES 6,C
-		RES(6, &C);
-		break;
-	case 0xB2u:	//RES 6,D
-		RES(6, &D);
-		break;
-	case 0xB3u:	//RES 6,E
-		RES(6, &E);
-		break;
-	case 0xB4u:	//RES 6,H
-		RES(6, &H);
-		break;
-	case 0xB5u:	//RES 6,L
-		RES(6, &L);
-		break;
-	case 0xB6u:	//RES 6,(HL)
-		m->writeByte(R_HL, RES(6, m->readByte(R_HL)));
-		break;
-	case 0xB7u:	//RES 6,A
-		RES(6, &A);
-		break;
-	case 0xB8u:	//RES 7,B
-		RES(7, &B);
-		break;
-	case 0xB9u:	//RES 7,C
-		RES(7, &C);
-		break;
-	case 0xBAu:	//RES 7,D
-		RES(7, &D);
-		break;
-	case 0xBBu:	//RES 7,E
-		RES(7, &E);
-		break;
-	case 0xBCu:	//RES 7,H
-		RES(7, &H);
-		break;
-	case 0xBDu:	//RES 7,L
-		RES(7, &L);
-		break;
-	case 0xBEu:	//RES 7,(HL)
-		m->writeByte(R_HL, RES(7, m->readByte(R_HL)));
-		break;
-	case 0xBFu:	//RES 7,A
-		RES(7, &A);
-		break;
-	case 0xC0u:	//SET 0,B
-		SET(0, &B);
-		break;
-	case 0xC1u:	//SET 0,C
-		SET(0, &C);
-		break;
-	case 0xC2u:	//SET 0,D
-		SET(0, &D);
-		break;
-	case 0xC3u:	//SET 0,E
-		SET(0, &E);
-		break;
-	case 0xC4u:	//SET 0,H
-		SET(0, &H);
-		break;
-	case 0xC5u:	//SET 0,L
-		SET(0, &L);
-		break;
-	case 0xC6u:	//SET 0,(HL)
-		m->writeByte(R_HL, SET(0, m->readByte(R_HL)));
-		break;
-	case 0xC7u:	//SET 0,A
-		SET(0, &A);
-		break;
-	case 0xC8u:	//SET 1,B
-		SET(1, &B);
-		break;
-	case 0xC9u:	//SET 1,C
-		SET(1, &C);
-		break;
-	case 0xCAu:	//SET 1,D
-		SET(1, &D);
-		break;
-	case 0xCBu:	//SET 1,E
-		SET(1, &E);
-		break;
-	case 0xCCu:	//SET 1,H
-		SET(1, &H);
-		break;
-	case 0xCDu:	//SET 1,L
-		SET(1, &L);
-		break;
-	case 0xCEu:	//SET 1,(HL)
-		m->writeByte(R_HL, SET(1, m->readByte(R_HL)));
-		break;
-	case 0xCFu:	//SET 1,A
-		SET(1, &A);
-		break;
-	case 0xD0u:	//SET 2,B
-		SET(2, &B);
-		break;
-	case 0xD1u:	//SET 2,C
-		SET(2, &C);
-		break;
-	case 0xD2u:	//SET 2,D
-		SET(2, &D);
-		break;
-	case 0xD3u:	//SET 2,E
-		SET(2, &E);
-		break;
-	case 0xD4u:	//SET 2,H
-		SET(2, &H);
-		break;
-	case 0xD5u:	//SET 2,L
-		SET(2, &L);
-		break;
-	case 0xD6u:	//SET 2,(HL)
-		m->writeByte(R_HL, SET(2, m->readByte(R_HL)));
-		break;
-	case 0xD7u:	//SET 2,A
-		SET(2, &A);
-		break;
-	case 0xD8u:	//SET 3,B
-		SET(3, &B);
-		break;
-	case 0xD9u:	//SET 3,C
-		SET(3, &C);
-		break;
-	case 0xDAu:	//SET 3,D
-		SET(3, &D);
-		break;
-	case 0xDBu:	//SET 3,E
-		SET(3, &E);
-		break;
-	case 0xDCu:	//SET 3,H
-		SET(3, &H);
-		break;
-	case 0xDDu:	//SET 3,L
-		SET(3, &L);
-		break;
-	case 0xDEu:	//SET 3,(HL)
-		m->writeByte(R_HL, SET(3, m->readByte(R_HL)));
-		break;
-	case 0xDFu:	//SET 3,A
-		SET(3, &A);
-		break;
-	case 0xE0u:	//SET 4,B
-		SET(4, &B);
-		break;
-	case 0xE1u:	//SET 4,C
-		SET(4, &C);
-		break;
-	case 0xE2u:	//SET 4,D
-		SET(4, &D);
-		break;
-	case 0xE3u:	//SET 4,E
-		SET(4, &E);
-		break;
-	case 0xE4u:	//SET 4,H
-		SET(4, &H);
-		break;
-	case 0xE5u:	//SET 4,L
-		SET(4, &L);
-		break;
-	case 0xE6u:	//SET 4,(HL)
-		m->writeByte(R_HL, SET(4, m->readByte(R_HL)));
-		break;
-	case 0xE7u:	//SET 4,A
-		SET(4, &A);
-		break;
-	case 0xE8u:	//SET 5,B
-		SET(5, &B);
-		break;
-	case 0xE9u:	//SET 5,C
-		SET(5, &C);
-		break;
-	case 0xEAu:	//SET 5,D
-		SET(5, &D);
-		break;
-	case 0xEBu:	//SET 5,E
-		SET(5, &E);
-		break;
-	case 0xECu:	//SET 5,H
-		SET(5, &H);
-		break;
-	case 0xEDu:	//SET 5,L
-		SET(5, &L);
-		break;
-	case 0xEEu:	//SET 5,(HL)
-		m->writeByte(R_HL, SET(5, m->readByte(R_HL)));
-		break;
-	case 0xEFu:	//SET 5,A
-		SET(5, &A);
-		break;
-	case 0xF0u:	//SET 6,B
-		SET(6, &B);
-		break;
-	case 0xF1u:	//SET 6,C
-		SET(6, &C);
-		break;
-	case 0xF2u:	//SET 6,D
-		SET(6, &D);
-		break;
-	case 0xF3u:	//SET 6,E
-		SET(6, &E);
-		break;
-	case 0xF4u:	//SET 6,H
-		SET(6, &H);
-		break;
-	case 0xF5u:	//SET 6,L
-		SET(6, &L);
-		break;
-	case 0xF6u:	//SET 6,(HL)
-		m->writeByte(R_HL, SET(6, m->readByte(R_HL)));
-		break;
-	case 0xF7u:	//SET 6,A
-		SET(6, &A);
-		break;
-	case 0xF8u:	//SET 7,B
-		SET(7, &B);
-		break;
-	case 0xF9u:	//SET 7,C
-		SET(7, &C);
-		break;
-	case 0xFAu:	//SET 7,D
-		SET(7, &D);
-		break;
-	case 0xFBu:	//SET 7,E
-		SET(7, &E);
-		break;
-	case 0xFCu:	//SET 7,H
-		SET(7, &H);
-		break;
-	case 0xFDu:	//SET 7,L
-		SET(7, &L);
-		break;
-	case 0xFEu:	//SET 7,(HL)
-		m->writeByte(R_HL, SET(7, m->readByte(R_HL)));
-		break;
-	case 0xFFu:	//SET 7,A
-		SET(7, &A);
-		break;
-	}
-}
-
-void handleStop(){
-
-}
-
-void handleHalt(){
-	bool interrupted = false;
-	while (!interrupted){
-		const int cyclesPerUpdate = 70224;
-		int cycles = 0;
-
-		while (cycles < cyclesPerUpdate){
-			updateTimer(4);
-			g->Step(4);
-			cycles += 4;
-			interrupted = IF > 0;
-			if (interrupted)
-				break;
-		}
-		g->Update();
-	}
-}
-
-
-int OP(uint8 code){
+int CPU::OP(uint8 code){
 	if (code == 0x76){
 		printf("");
 	}
@@ -2389,4 +1636,856 @@ int OP(uint8 code){
 	default:
 		return -1; //not reachable, just here to suppress warnings
 	}
+}
+
+void CPU::CB(uint8 code){
+	switch (code){
+	case 0x0u:	//RLC B
+		RLC(&B);
+		break;
+	case 0x1u:	//RLC C
+		RLC(&C);
+		break;
+	case 0x2u:	//RLC D
+		RLC(&D);
+		break;
+	case 0x3u:	//RLC E
+		RLC(&E);
+		break;
+	case 0x4u:	//RLC H
+		RLC(&H);
+		break;
+	case 0x5u:	//RLC L
+		RLC(&L);
+		break;
+	case 0x6u:	//RLC (HL)
+		m->writeByte(R_HL, RLC(m->readByte(R_HL)));
+		break;
+	case 0x7u:	//RLC A
+		RLC(&A);
+		break;
+	case 0x8u:	//RRC B
+		RRC(&B);
+		break;
+	case 0x9u:	//RRC C
+		RRC(&C);
+		break;
+	case 0xAu:	//RRC D
+		RRC(&D);
+		break;
+	case 0xBu:	//RRC E
+		RRC(&E);
+		break;
+	case 0xCu:	//RRC H
+		RRC(&H);
+		break;
+	case 0xDu:	//RRC L
+		RRC(&L);
+		break;
+	case 0xEu:	//RRC (HL)
+		m->writeByte(R_HL, RRC(m->readByte(R_HL)));
+		break;
+	case 0xFu:	//RRC A
+		RRC(&A);
+		break;
+	case 0x10u:	//RL B
+		RL(&B);
+		break;
+	case 0x11u:	//RL C
+		RL(&C);
+		break;
+	case 0x12u:	//RL D
+		RL(&D);
+		break;
+	case 0x13u:	//RL E
+		RL(&E);
+		break;
+	case 0x14u:	//RL H
+		RL(&H);
+		break;
+	case 0x15u:	//RL L
+		RL(&L);
+		break;
+	case 0x16u:	//RL (HL)
+		m->writeByte(R_HL, RL(m->readByte(R_HL)));
+		break;
+	case 0x17u:	//RL A
+		RL(&A);
+		break;
+	case 0x18u:	//RR B
+		RR(&B);
+		break;
+	case 0x19u:	//RR C
+		RR(&C);
+		break;
+	case 0x1Au:	//RR D
+		RR(&D);
+		break;
+	case 0x1Bu:	//RR E
+		RR(&E);
+		break;
+	case 0x1Cu:	//RR H
+		RR(&H);
+		break;
+	case 0x1Du:	//RR L
+		RR(&L);
+		break;
+	case 0x1Eu:	//RR (HL)
+		m->writeByte(R_HL, RR(m->readByte(R_HL)));
+		break;
+	case 0x1Fu:	//RR A
+		RR(&A);
+		break;
+	case 0x20u:	//SLA B
+		SLA(&B);
+		break;
+	case 0x21u:	//SLA C
+		SLA(&C);
+		break;
+	case 0x22u:	//SLA D
+		SLA(&D);
+		break;
+	case 0x23u:	//SLA E
+		SLA(&E);
+		break;
+	case 0x24u:	//SLA H
+		SLA(&H);
+		break;
+	case 0x25u:	//SLA L
+		SLA(&L);
+		break;
+	case 0x26u:	//SLA (HL)
+		m->writeByte(R_HL, SLA(m->readByte(R_HL)));
+		break;
+	case 0x27u:	//SLA A
+		SLA(&A);
+		break;
+	case 0x28u:	//SRA B
+		SRA(&B);
+		break;
+	case 0x29u:	//SRA C
+		SRA(&C);
+		break;
+	case 0x2Au:	//SRA D
+		SRA(&D);
+		break;
+	case 0x2Bu:	//SRA E
+		SRA(&E);
+		break;
+	case 0x2Cu:	//SRA H
+		SRA(&H);
+		break;
+	case 0x2Du:	//SRA L
+		SRA(&L);
+		break;
+	case 0x2Eu:	//SRA (HL)
+		m->writeByte(R_HL, SRA(m->readByte(R_HL)));
+		break;
+	case 0x2Fu:	//SRA A
+		SRA(&A);
+		break;
+	case 0x30u:	//SWAP B
+		SWAP(&B);
+		break;
+	case 0x31u:	//SWAP C
+		SWAP(&C);
+		break;
+	case 0x32u:	//SWAP D
+		SWAP(&D);
+		break;
+	case 0x33u:	//SWAP E
+		SWAP(&E);
+		break;
+	case 0x34u:	//SWAP H
+		SWAP(&H);
+		break;
+	case 0x35u:	//SWAP L
+		SWAP(&L);
+		break;
+	case 0x36u:	//SWAP (HL)
+		m->writeByte(R_HL, SWAP(m->readByte(R_HL)));
+		break;
+	case 0x37u:	//SWAP A
+		SWAP(&A);
+		break;
+	case 0x38u:	//SRL B
+		SRL(&B);
+		break;
+	case 0x39u:	//SRL C
+		SRL(&C);
+		break;
+	case 0x3Au:	//SRL D
+		SRL(&D);
+		break;
+	case 0x3Bu:	//SRL E
+		SRL(&E);
+		break;
+	case 0x3Cu:	//SRL H
+		SRL(&H);
+		break;
+	case 0x3Du:	//SRL L
+		SRL(&L);
+		break;
+	case 0x3Eu:	//SRL (HL)
+		m->writeByte(R_HL, SRL(m->readByte(R_HL)));
+		break;
+	case 0x3Fu:	//SRL A
+		SRL(&A);
+		break;
+	case 0x40u:	//BIT 0,B
+		BIT(0, &B);
+		break;
+	case 0x41u:	//BIT 0,C
+		BIT(0, &C);
+		break;
+	case 0x42u:	//BIT 0,D
+		BIT(0, &D);
+		break;
+	case 0x43u:	//BIT 0,E
+		BIT(0, &E);
+		break;
+	case 0x44u:	//BIT 0,H
+		BIT(0, &H);
+		break;
+	case 0x45u:	//BIT 0,L
+		BIT(0, &L);
+		break;
+	case 0x46u:	//BIT 0,(HL)
+		BIT(0, m->readByte(R_HL));
+		break;
+	case 0x47u:	//BIT 0,A
+		BIT(0, &A);
+		break;
+	case 0x48u:	//BIT 1,B
+		BIT(1, &B);
+		break;
+	case 0x49u:	//BIT 1,C
+		BIT(1, &C);
+		break;
+	case 0x4Au:	//BIT 1,D
+		BIT(1, &D);
+		break;
+	case 0x4Bu:	//BIT 1,E
+		BIT(1, &E);
+		break;
+	case 0x4Cu:	//BIT 1,H
+		BIT(1, &H);
+		break;
+	case 0x4Du:	//BIT 1,L
+		BIT(1, &L);
+		break;
+	case 0x4Eu:	//BIT 1,(HL)
+		BIT(1, m->readByte(R_HL));
+		break;
+	case 0x4Fu:	//BIT 1,A
+		BIT(1, &A);
+		break;
+	case 0x50u:	//BIT 2,B
+		BIT(2, &B);
+		break;
+	case 0x51u:	//BIT 2,C
+		BIT(2, &C);
+		break;
+	case 0x52u:	//BIT 2,D
+		BIT(2, &D);
+		break;
+	case 0x53u:	//BIT 2,E
+		BIT(2, &E);
+		break;
+	case 0x54u:	//BIT 2,H
+		BIT(2, &H);
+		break;
+	case 0x55u:	//BIT 2,L
+		BIT(2, &L);
+		break;
+	case 0x56u:	//BIT 2,(HL)
+		BIT(2, m->readByte(R_HL));
+		break;
+	case 0x57u:	//BIT 2,A
+		BIT(2, &A);
+		break;
+	case 0x58u:	//BIT 3,B
+		BIT(3, &B);
+		break;
+	case 0x59u:	//BIT 3,C
+		BIT(3, &C);
+		break;
+	case 0x5Au:	//BIT 3,D
+		BIT(3, &D);
+		break;
+	case 0x5Bu:	//BIT 3,E
+		BIT(3, &E);
+		break;
+	case 0x5Cu:	//BIT 3,H
+		BIT(3, &H);
+		break;
+	case 0x5Du:	//BIT 3,L
+		BIT(3, &L);
+		break;
+	case 0x5Eu:	//BIT 3,(HL)
+		BIT(3, m->readByte(R_HL));
+		break;
+	case 0x5Fu:	//BIT 3,A
+		BIT(3, &A);
+		break;
+	case 0x60u:	//BIT 4,B
+		BIT(4, &B);
+		break;
+	case 0x61u:	//BIT 4,C
+		BIT(4, &C);
+		break;
+	case 0x62u:	//BIT 4,D
+		BIT(4, &D);
+		break;
+	case 0x63u:	//BIT 4,E
+		BIT(4, &E);
+		break;
+	case 0x64u:	//BIT 4,H
+		BIT(4, &H);
+		break;
+	case 0x65u:	//BIT 4,L
+		BIT(4, &L);
+		break;
+	case 0x66u:	//BIT 4,(HL)
+		BIT(4, m->readByte(R_HL));
+		break;
+	case 0x67u:	//BIT 4,A
+		BIT(4, &A);
+		break;
+	case 0x68u:	//BIT 5,B
+		BIT(5, &B);
+		break;
+	case 0x69u:	//BIT 5,C
+		BIT(5, &C);
+		break;
+	case 0x6Au:	//BIT 5,D
+		BIT(5, &D);
+		break;
+	case 0x6Bu:	//BIT 5,E
+		BIT(5, &E);
+		break;
+	case 0x6Cu:	//BIT 5,H
+		BIT(5, &H);
+		break;
+	case 0x6Du:	//BIT 5,L
+		BIT(5, &L);
+		break;
+	case 0x6Eu:	//BIT 5,(HL)
+		BIT(5, m->readByte(R_HL));
+		break;
+	case 0x6Fu:	//BIT 5,A
+		BIT(5, &A);
+		break;
+	case 0x70u:	//BIT 6,B
+		BIT(6, &B);
+		break;
+	case 0x71u:	//BIT 6,C
+		BIT(6, &C);
+		break;
+	case 0x72u:	//BIT 6,D
+		BIT(6, &D);
+		break;
+	case 0x73u:	//BIT 6,E
+		BIT(6, &E);
+		break;
+	case 0x74u:	//BIT 6,H
+		BIT(6, &H);
+		break;
+	case 0x75u:	//BIT 6,L
+		BIT(6, &L);
+		break;
+	case 0x76u:	//BIT 6,(HL)
+		BIT(6, m->readByte(R_HL));
+		break;
+	case 0x77u:	//BIT 6,A
+		BIT(6, &A);
+		break;
+	case 0x78u:	//BIT 7,B
+		BIT(7, &B);
+		break;
+	case 0x79u:	//BIT 7,C
+		BIT(7, &C);
+		break;
+	case 0x7Au:	//BIT 7,D
+		BIT(7, &D);
+		break;
+	case 0x7Bu:	//BIT 7,E
+		BIT(7, &E);
+		break;
+	case 0x7Cu:	//BIT 7,H
+		BIT(7, &H);
+		break;
+	case 0x7Du:	//BIT 7,L
+		BIT(7, &L);
+		break;
+	case 0x7Eu:	//BIT 7,(HL)
+		BIT(7, m->readByte(R_HL));
+		break;
+	case 0x7Fu:	//BIT 7,A
+		BIT(7, &A);
+		break;
+	case 0x80u:	//RES 0,B
+		RES(0, &B);
+		break;
+	case 0x81u:	//RES 0,C
+		RES(0, &C);
+		break;
+	case 0x82u:	//RES 0,D
+		RES(0, &D);
+		break;
+	case 0x83u:	//RES 0,E
+		RES(0, &E);
+		break;
+	case 0x84u:	//RES 0,H
+		RES(0, &H);
+		break;
+	case 0x85u:	//RES 0,L
+		RES(0, &L);
+		break;
+	case 0x86u:	//RES 0,(HL)
+		m->writeByte(R_HL, RES(0, m->readByte(R_HL)));
+		break;
+	case 0x87u:	//RES 0,A
+		RES(0, &A);
+		break;
+	case 0x88u:	//RES 1,B
+		RES(1, &B);
+		break;
+	case 0x89u:	//RES 1,C
+		RES(1, &C);
+		break;
+	case 0x8Au:	//RES 1,D
+		RES(1, &D);
+		break;
+	case 0x8Bu:	//RES 1,E
+		RES(1, &E);
+		break;
+	case 0x8Cu:	//RES 1,H
+		RES(1, &H);
+		break;
+	case 0x8Du:	//RES 1,L
+		RES(1, &L);
+		break;
+	case 0x8Eu:	//RES 1,(HL)
+		m->writeByte(R_HL, RES(1, m->readByte(R_HL)));
+		break;
+	case 0x8Fu:	//RES 1,A
+		RES(1, &A);
+		break;
+	case 0x90u:	//RES 2,B
+		RES(2, &B);
+		break;
+	case 0x91u:	//RES 2,C
+		RES(2, &C);
+		break;
+	case 0x92u:	//RES 2,D
+		RES(2, &D);
+		break;
+	case 0x93u:	//RES 2,E
+		RES(2, &E);
+		break;
+	case 0x94u:	//RES 2,H
+		RES(2, &H);
+		break;
+	case 0x95u:	//RES 2,L
+		RES(2, &L);
+		break;
+	case 0x96u:	//RES 2,(HL)
+		m->writeByte(R_HL, RES(2, m->readByte(R_HL)));
+		break;
+	case 0x97u:	//RES 2,A
+		RES(2, &A);
+		break;
+	case 0x98u:	//RES 3,B
+		RES(3, &B);
+		break;
+	case 0x99u:	//RES 3,C
+		RES(3, &C);
+		break;
+	case 0x9Au:	//RES 3,D
+		RES(3, &D);
+		break;
+	case 0x9Bu:	//RES 3,E
+		RES(3, &E);
+		break;
+	case 0x9Cu:	//RES 3,H
+		RES(3, &H);
+		break;
+	case 0x9Du:	//RES 3,L
+		RES(3, &L);
+		break;
+	case 0x9Eu:	//RES 3,(HL)
+		m->writeByte(R_HL, RES(3, m->readByte(R_HL)));
+		break;
+	case 0x9Fu:	//RES 3,A
+		RES(3, &A);
+		break;
+	case 0xA0u:	//RES 4,B
+		RES(4, &B);
+		break;
+	case 0xA1u:	//RES 4,C
+		RES(4, &C);
+		break;
+	case 0xA2u:	//RES 4,D
+		RES(4, &D);
+		break;
+	case 0xA3u:	//RES 4,E
+		RES(4, &E);
+		break;
+	case 0xA4u:	//RES 4,H
+		RES(4, &H);
+		break;
+	case 0xA5u:	//RES 4,L
+		RES(4, &L);
+		break;
+	case 0xA6u:	//RES 4,(HL)
+		m->writeByte(R_HL, RES(4, m->readByte(R_HL)));
+		break;
+	case 0xA7u:	//RES 4,A
+		RES(4, &A);
+		break;
+	case 0xA8u:	//RES 5,B
+		RES(5, &B);
+		break;
+	case 0xA9u:	//RES 5,C
+		RES(5, &C);
+		break;
+	case 0xAAu:	//RES 5,D
+		RES(5, &D);
+		break;
+	case 0xABu:	//RES 5,E
+		RES(5, &E);
+		break;
+	case 0xACu:	//RES 5,H
+		RES(5, &H);
+		break;
+	case 0xADu:	//RES 5,L
+		RES(5, &L);
+		break;
+	case 0xAEu:	//RES 5,(HL)
+		m->writeByte(R_HL, RES(5, m->readByte(R_HL)));
+		break;
+	case 0xAFu:	//RES 5,A
+		RES(5, &A);
+		break;
+	case 0xB0u:	//RES 6,B
+		RES(6, &B);
+		break;
+	case 0xB1u:	//RES 6,C
+		RES(6, &C);
+		break;
+	case 0xB2u:	//RES 6,D
+		RES(6, &D);
+		break;
+	case 0xB3u:	//RES 6,E
+		RES(6, &E);
+		break;
+	case 0xB4u:	//RES 6,H
+		RES(6, &H);
+		break;
+	case 0xB5u:	//RES 6,L
+		RES(6, &L);
+		break;
+	case 0xB6u:	//RES 6,(HL)
+		m->writeByte(R_HL, RES(6, m->readByte(R_HL)));
+		break;
+	case 0xB7u:	//RES 6,A
+		RES(6, &A);
+		break;
+	case 0xB8u:	//RES 7,B
+		RES(7, &B);
+		break;
+	case 0xB9u:	//RES 7,C
+		RES(7, &C);
+		break;
+	case 0xBAu:	//RES 7,D
+		RES(7, &D);
+		break;
+	case 0xBBu:	//RES 7,E
+		RES(7, &E);
+		break;
+	case 0xBCu:	//RES 7,H
+		RES(7, &H);
+		break;
+	case 0xBDu:	//RES 7,L
+		RES(7, &L);
+		break;
+	case 0xBEu:	//RES 7,(HL)
+		m->writeByte(R_HL, RES(7, m->readByte(R_HL)));
+		break;
+	case 0xBFu:	//RES 7,A
+		RES(7, &A);
+		break;
+	case 0xC0u:	//SET 0,B
+		SET(0, &B);
+		break;
+	case 0xC1u:	//SET 0,C
+		SET(0, &C);
+		break;
+	case 0xC2u:	//SET 0,D
+		SET(0, &D);
+		break;
+	case 0xC3u:	//SET 0,E
+		SET(0, &E);
+		break;
+	case 0xC4u:	//SET 0,H
+		SET(0, &H);
+		break;
+	case 0xC5u:	//SET 0,L
+		SET(0, &L);
+		break;
+	case 0xC6u:	//SET 0,(HL)
+		m->writeByte(R_HL, SET(0, m->readByte(R_HL)));
+		break;
+	case 0xC7u:	//SET 0,A
+		SET(0, &A);
+		break;
+	case 0xC8u:	//SET 1,B
+		SET(1, &B);
+		break;
+	case 0xC9u:	//SET 1,C
+		SET(1, &C);
+		break;
+	case 0xCAu:	//SET 1,D
+		SET(1, &D);
+		break;
+	case 0xCBu:	//SET 1,E
+		SET(1, &E);
+		break;
+	case 0xCCu:	//SET 1,H
+		SET(1, &H);
+		break;
+	case 0xCDu:	//SET 1,L
+		SET(1, &L);
+		break;
+	case 0xCEu:	//SET 1,(HL)
+		m->writeByte(R_HL, SET(1, m->readByte(R_HL)));
+		break;
+	case 0xCFu:	//SET 1,A
+		SET(1, &A);
+		break;
+	case 0xD0u:	//SET 2,B
+		SET(2, &B);
+		break;
+	case 0xD1u:	//SET 2,C
+		SET(2, &C);
+		break;
+	case 0xD2u:	//SET 2,D
+		SET(2, &D);
+		break;
+	case 0xD3u:	//SET 2,E
+		SET(2, &E);
+		break;
+	case 0xD4u:	//SET 2,H
+		SET(2, &H);
+		break;
+	case 0xD5u:	//SET 2,L
+		SET(2, &L);
+		break;
+	case 0xD6u:	//SET 2,(HL)
+		m->writeByte(R_HL, SET(2, m->readByte(R_HL)));
+		break;
+	case 0xD7u:	//SET 2,A
+		SET(2, &A);
+		break;
+	case 0xD8u:	//SET 3,B
+		SET(3, &B);
+		break;
+	case 0xD9u:	//SET 3,C
+		SET(3, &C);
+		break;
+	case 0xDAu:	//SET 3,D
+		SET(3, &D);
+		break;
+	case 0xDBu:	//SET 3,E
+		SET(3, &E);
+		break;
+	case 0xDCu:	//SET 3,H
+		SET(3, &H);
+		break;
+	case 0xDDu:	//SET 3,L
+		SET(3, &L);
+		break;
+	case 0xDEu:	//SET 3,(HL)
+		m->writeByte(R_HL, SET(3, m->readByte(R_HL)));
+		break;
+	case 0xDFu:	//SET 3,A
+		SET(3, &A);
+		break;
+	case 0xE0u:	//SET 4,B
+		SET(4, &B);
+		break;
+	case 0xE1u:	//SET 4,C
+		SET(4, &C);
+		break;
+	case 0xE2u:	//SET 4,D
+		SET(4, &D);
+		break;
+	case 0xE3u:	//SET 4,E
+		SET(4, &E);
+		break;
+	case 0xE4u:	//SET 4,H
+		SET(4, &H);
+		break;
+	case 0xE5u:	//SET 4,L
+		SET(4, &L);
+		break;
+	case 0xE6u:	//SET 4,(HL)
+		m->writeByte(R_HL, SET(4, m->readByte(R_HL)));
+		break;
+	case 0xE7u:	//SET 4,A
+		SET(4, &A);
+		break;
+	case 0xE8u:	//SET 5,B
+		SET(5, &B);
+		break;
+	case 0xE9u:	//SET 5,C
+		SET(5, &C);
+		break;
+	case 0xEAu:	//SET 5,D
+		SET(5, &D);
+		break;
+	case 0xEBu:	//SET 5,E
+		SET(5, &E);
+		break;
+	case 0xECu:	//SET 5,H
+		SET(5, &H);
+		break;
+	case 0xEDu:	//SET 5,L
+		SET(5, &L);
+		break;
+	case 0xEEu:	//SET 5,(HL)
+		m->writeByte(R_HL, SET(5, m->readByte(R_HL)));
+		break;
+	case 0xEFu:	//SET 5,A
+		SET(5, &A);
+		break;
+	case 0xF0u:	//SET 6,B
+		SET(6, &B);
+		break;
+	case 0xF1u:	//SET 6,C
+		SET(6, &C);
+		break;
+	case 0xF2u:	//SET 6,D
+		SET(6, &D);
+		break;
+	case 0xF3u:	//SET 6,E
+		SET(6, &E);
+		break;
+	case 0xF4u:	//SET 6,H
+		SET(6, &H);
+		break;
+	case 0xF5u:	//SET 6,L
+		SET(6, &L);
+		break;
+	case 0xF6u:	//SET 6,(HL)
+		m->writeByte(R_HL, SET(6, m->readByte(R_HL)));
+		break;
+	case 0xF7u:	//SET 6,A
+		SET(6, &A);
+		break;
+	case 0xF8u:	//SET 7,B
+		SET(7, &B);
+		break;
+	case 0xF9u:	//SET 7,C
+		SET(7, &C);
+		break;
+	case 0xFAu:	//SET 7,D
+		SET(7, &D);
+		break;
+	case 0xFBu:	//SET 7,E
+		SET(7, &E);
+		break;
+	case 0xFCu:	//SET 7,H
+		SET(7, &H);
+		break;
+	case 0xFDu:	//SET 7,L
+		SET(7, &L);
+		break;
+	case 0xFEu:	//SET 7,(HL)
+		m->writeByte(R_HL, SET(7, m->readByte(R_HL)));
+		break;
+	case 0xFFu:	//SET 7,A
+		SET(7, &A);
+		break;
+	}
+}
+
+void CPU::handleStop(){
+
+}
+
+void CPU::handleHalt(){
+	bool interrupted = false;
+	while (!interrupted){
+		const int cyclesPerUpdate = 70224;
+		int cycles = 0;
+
+		while (cycles < cyclesPerUpdate){
+			updateTimer(4);
+			g->Step(4);
+			cycles += 4;
+			interrupted = IF > 0;
+			if (interrupted)
+				break;
+		}
+		g->Update();
+	}
+}
+
+void CPU::requestInterrupt(interrupts i){
+	m->writeByte(0xFF0Fu, IF | (0x1u << i));
+}
+
+bool CPU::handleInterrupts(){
+	if (interruptEnabled){
+		if (IF > 0){	//if there are any flags set in IF
+			for (int i = 0; i < 5; i++){	//go from bit 0 to bit 5, in order of priority
+				if (((IF & (1 << i)) > 0) &&
+					((IE & (1 << i)) > 0)){	//if the specific interrupt flag is set and it is enabled
+					serviceInterrupt(i);
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+void CPU::serviceInterrupt(int bit){
+	interruptEnabled = false;
+	m->writeByte(0xFF0fu, IF & ~(1 << bit));	//reset the interrupt specific flag in IF
+	g->Step(20);
+	updateTimer(20);
+	//push PC onto stack
+	SP -= 1;
+	m->writeByte(SP, PC >> 8);
+	SP -= 1;
+	m->writeByte(SP, PC & 0xFFu);
+
+	switch (bit){
+	case 0:
+		PC = 0x40u;
+		break;
+	case 1:
+		PC = 0x48u;
+		break;
+	case 2:
+		PC = 0x50u;
+		break;
+	case 3:
+		PC = 0x58u;
+		break;
+	case 4:
+		PC = 0x60u;
+		break;
+	}
+}
+
+int CPU::update(){
+	int cycles = OP(m->readInstruction(&PC));
+	if (cycles == -1){
+		printf("Error: %4X %X", PC - 1, m->readByte(PC - 1));
+	}
+	return cycles;
 }

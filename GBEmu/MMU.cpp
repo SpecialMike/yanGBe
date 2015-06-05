@@ -50,6 +50,10 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 	RTCLatchPossible = false;
 }
 
+void MMU::setCPU(CPU* cpu){
+	c = cpu;
+}
+
 MMU::~MMU()
 {
 	delete rom;
@@ -172,7 +176,7 @@ uint8 MMU::readByte(unsigned _int16 address){
 }
 
 //Read the byte from memory at PC and increment PC
-uint8 MMU::readInstruction(_int16* PC){
+uint8 MMU::readInstruction(unsigned _int16* PC){
 	*PC = (*PC + 1) & 0xFFFFu;
 	return readByte(*PC - 1);
 }
@@ -196,10 +200,10 @@ RTCRegister getRTCReg(uint8 value){
 
 //used to transfer sprite data
 //From value<<8 to 0xFE00
-void DMATransfer(uint8 value){
+void MMU::DMATransfer(uint8 value){
 	uint16 address = value << 8;
 	for (int i = 0; i < 0xA0; i++){
-		m->writeByte(0xFE00 + i, m->readByte(address + i));
+		this->writeByte(0xFE00 + i, this->readByte(address + i));
 	}
 }
 
@@ -364,19 +368,18 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 					if ((currentTMC & 0x03) != (newTMC & 0x03)){	//clock frequency has changed, so reset the counter for it
 						switch (newTMC & 0x03){
 						case 0x0u:
-							timerPeriod = 1024;
+							c->timerPeriod = 1024;
 							break;
 						case 0x1u:
-							timerPeriod = 16;
+							c->timerPeriod = 16;
 							break;
 						case 0x2u:
-							timerPeriod = 64;
+							c->timerPeriod = 64;
 							break;
 						case 0x3u:
-							timerPeriod = 256;
+							c->timerPeriod = 256;
 							break;
 						}
-						skipTimerUpdate = true;
 					}
 				}
 				else if (address == 0xFF44){

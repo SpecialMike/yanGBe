@@ -2,12 +2,6 @@
 #include "GPU.h"
 #include "GBEmu.h"
 
-
-
-uint16 data[144][160];
-SDL_Window* window;
-SDL_Renderer* renderer;
-SDL_Texture* texture;
 int mode = 0;
 int modeClock = 0;
 int scanlineCounter = 456;	//456 cycles to draw a scanline
@@ -18,41 +12,25 @@ GPU::GPU()
 {
 }
 
-
 GPU::~GPU()
 {
-	for (int i = 0; i < 160; i++)
+	for (int i = 0; i < 144; i++)
 		delete[] &data[i];
 	delete[] &data;
-	SDL_DestroyTexture(texture);
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
-	SDL_Quit();
 }
 
-void GPU::Reset(){
-	if (SDL_Init(SDL_INIT_VIDEO) != 0){
-		std::cout << SDL_GetError() << std::endl;
-		return;
-	}
+void GPU::Reset(MMU* mem, CPU* cpu){
+	m = mem;
+	c = cpu;
 
-	window = SDL_CreateWindow("GBEmu", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 160, 144, 0);
-	renderer = SDL_CreateRenderer(window, -1, 0);
-	texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR4444, SDL_TEXTUREACCESS_STREAMING, 160, 144);
-	//if (!window || !renderer || !texture)
-		printf("%s\n", SDL_GetError());
-	//memset(data, 0x000000u, 160 * 144 * sizeof(unsigned _int32));
 	return;
 }
 
 void GPU::Update(){
-	SDL_UpdateTexture(texture, NULL, data, 160 * 2);
-	SDL_RenderClear(renderer);
-	SDL_RenderCopy(renderer, texture, NULL, NULL);
-	SDL_RenderPresent(renderer);
+
 }
 
-void SetLCDStatus(){
+void GPU::SetLCDStatus(){
 	uint8 currStatus = STAT;
 	if (!((LCDC & (1 << 7)) > 0)){	//if the LCD is disabled, then reset the line counter, LY and change to mode 1
 		scanlineCounter = 456;
@@ -92,14 +70,14 @@ void SetLCDStatus(){
 	}
 
 	if (modeInterruptEnabled && (mode != newMode)){
-		requestInterrupt(LCD);
+		c->requestInterrupt(CPU::LCD);
 	}
 
 	if (LY == LYC){
 		currStatus &= 0xFBu;	//Set the coincidence flag
 		currStatus |= 0x04u;
 		if ((currStatus & (1 << 6)) > 0)
-			requestInterrupt(LCD);
+			c->requestInterrupt(CPU::LCD);
 	}
 	else{
 		currStatus &= 0xFBu;
@@ -122,7 +100,7 @@ void GPU::Step(int cycles){
 		m->incrementLY();
 
 		if (line == 144){
-			requestInterrupt(VBLANK);
+			c->requestInterrupt(CPU::VBLANK);
 		}
 
 		if (line > 153){	//VBLANK period is over, reset line to 0
@@ -145,7 +123,7 @@ uint8 mapPalette(uint8 colorNumber, uint8 palette){
 	return colorBits;
 }
 
-void drawBGLine(){
+void GPU::drawBGLine(){
 	unsigned _int16 tileMapAddress;
 	unsigned _int16 tileDataAddress;
 	uint8 yPos;
@@ -232,16 +210,24 @@ void drawBGLine(){
 		//data[i][LY] = palette;
 		switch (palette){
 		case 0x00u:
-			data[LY-1][i] = 0xFFFFu;
+			data[LY - 1][i][0] = 0xFFu;
+			data[LY - 1][i][1] = 0xFFu;
+			data[LY - 1][i][2] = 0xFFu;
 			break;
 		case 0x01u:
-			data[LY-1][i] = 0xF777u;
+			data[LY - 1][i][0] = 0x77u;
+			data[LY - 1][i][1] = 0x77u;
+			data[LY - 1][i][2] = 0x77u;
 			break;
 		case 0x02u:
-			data[LY-1][i] = 0xFCCCu;
+			data[LY - 1][i][0] = 0xCCu;
+			data[LY - 1][i][1] = 0xCCu;
+			data[LY - 1][i][2] = 0xCCu;
 			break;
 		case 0x03u:
-			data[LY-1][i] = 0xF000u;
+			data[LY - 1][i][0] = 0x00u;
+			data[LY - 1][i][1] = 0x00u;
+			data[LY - 1][i][2] = 0x00u;
 			break;
 		}
 	}

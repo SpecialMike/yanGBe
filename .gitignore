@@ -221,3 +221,4 @@ cpu_instrs/*
 instr_timing/*
 mem_timing/*
 GBEmu/output.txt
+packages/*
