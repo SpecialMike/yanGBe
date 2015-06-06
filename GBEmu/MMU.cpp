@@ -13,7 +13,6 @@ enum RTCRegister{
 RTCRegister currentRTCRegister;
 MMU::cartType type;
 
-
 MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 {
 	type = t;
@@ -179,6 +178,10 @@ uint8 MMU::readByte(unsigned _int16 address){
 uint8 MMU::readInstruction(unsigned _int16* PC){
 	*PC = (*PC + 1) & 0xFFFFu;
 	return readByte(*PC - 1);
+}
+
+uint8 MMU::readVram(unsigned _int16 address){
+	return vram[address & 0x1FFFu];
 }
 
 RTCRegister getRTCReg(uint8 value){

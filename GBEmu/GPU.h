@@ -11,6 +11,7 @@ class MMU;
 class GPU
 {
 private:
+	uint8 mapPalette(uint8 colorNumber, uint8 palette);
 	void updateLine();
 	MMU* m;
 	CPU* c;

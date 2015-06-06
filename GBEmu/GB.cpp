@@ -1,7 +1,11 @@
 #include "stdafx.h"
+#include <sstream>
 #include "GB.h"
+#include <Windows.h>
 
 uint8 *cartROM;
+
+using namespace std;
 
 GB::GB(const char* filePath)
 {
@@ -45,13 +49,21 @@ bool GB::openROM(const char* file){
 	cartROM = new uint8[size];
 	fread(cartROM, sizeof(uint8), size, input);
 	fclose(input);
-	m = new MMU(MMU::MBC1, 1, 1, cartROM);
+	getCartInfo();
+	//m = new MMU(MMU::MBC1, 1, 1, cartROM);
 	return true;
 
 }
 
 //Prints out the cart's info from 0x134u to 0x14Fu
-void getCartInfo(){
+//
+//Also creates the MMU, because this information contains
+//everything you need to know about it.
+void GB::getCartInfo(){
+	MMU::cartType type;
+	int numRomBanks;
+	int numRamBanks;
+
 	char name[15];
 	for (int i = 0; i <15; i++){
 		name[i] = cartROM[0x134u + i];
@@ -72,18 +84,23 @@ void getCartInfo(){
 		break;
 	case 1:
 		printf("ROM+MBC1\n");
+		type = MMU::MBC1;
 		break;
 	case 2:
 		printf("ROM+MBC1+RAM\n");
+		type = MMU::MBC1;
 		break;
 	case 3:
 		printf("ROM+MBC1+RAM+BATT\n");
+		type = MMU::MBC1;
 		break;
 	case 5:
 		printf("ROM+MBC2\n");
+		type = MMU::MBC2;
 		break;
 	case 6:
 		printf("ROM+MBC2+BATT\n");
+		type = MMU::MBC2;
 		break;
 	case 8:
 		printf("ROM+RAM\n");
@@ -102,18 +119,23 @@ void getCartInfo(){
 		break;
 	case 0xFu:
 		printf("ROM+MBC3+TIMER+BATT\n");
+		type = MMU::MBC3;
 		break;
 	case 0x10u:
 		printf("ROM+MBC3+TIMER+RAM+BATT\n");
+		type = MMU::MBC3;
 		break;
 	case 0x11u:
 		printf("ROM+MBC3\n");
+		type = MMU::MBC3;
 		break;
 	case 0x12u:
 		printf("ROM+MBC3+RAM\n");
+		type = MMU::MBC3;
 		break;
 	case 0x13u:
 		printf("ROM+MBC3+RAM+BATT\n");
+		type = MMU::MBC3;
 		break;
 	case 0x19u:
 		printf("ROM+MBC5\n");
@@ -153,33 +175,43 @@ void getCartInfo(){
 	switch (cartROM[0x148u]){
 	case 0:
 		printf("256Kbit - 2 banks\n");
+		numRomBanks = 2;
 		break;
 	case 1:
 		printf("512Kbit - 4 banks\n");
+		numRomBanks = 4;
 		break;
 	case 2:
 		printf("1Mbit - 8 banks\n");
+		numRomBanks = 8;
 		break;
 	case 3:
 		printf("2Mbit - 16 banks\n");
+		numRomBanks = 16;
 		break;
 	case 4:
 		printf("4Mbit - 32 banks\n");
+		numRomBanks = 32;
 		break;
 	case 5:
 		printf("8Mbit - 64 banks\n");
+		numRomBanks = 64;
 		break;
 	case 6:
 		printf("16Mbit - 128 banks\n");
+		numRomBanks = 128;
 		break;
 	case 0x52u:
 		printf("9Mbit - 72 banks\n");
+		numRomBanks = 72;
 		break;
 	case 0x53u:
 		printf("10Mbit - 80 banks\n");
+		numRomBanks = 80;
 		break;
 	case 0x54u:
 		printf("12Mbit - 96 banks\n");
+		numRomBanks = 96;
 		break;
 	default:
 		printf("Error\n");
@@ -189,18 +221,23 @@ void getCartInfo(){
 	switch (cartROM[0x149u]){
 	case 0:
 		printf("None\n");
+		numRamBanks = 0;
 		break;
 	case 1:
 		printf("16Kbit - 1 bank\n");
+		numRomBanks = 1;
 		break;
 	case 2:
 		printf("64Kbit - 1 bank\n");
+		numRomBanks = 1;
 		break;
 	case 3:
 		printf("256Kbit - 4 banks\n");
+		numRomBanks = 4;
 		break;
 	case 4:
 		printf("1Mbit - 16 banks\n");
+		numRomBanks = 16;
 		break;
 	default:
 		printf("Error\n");
@@ -217,9 +254,11 @@ void getCartInfo(){
 	default:
 		printf("Error\n");
 	}
+	m = new MMU(type, numRomBanks, numRamBanks, cartROM);
 }
 
 void GB::UpdateToVBlank(){
+
 	const int cyclesPerUpdate = 70224;
 	int cycles = 0;
 
@@ -231,5 +270,6 @@ void GB::UpdateToVBlank(){
 		c->updateTimer(addedCycles);
 		cycles += addedCycles;
 	}
+
 	g->Update();
 }

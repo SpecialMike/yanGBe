@@ -41,6 +41,7 @@ public:
 	~MMU();
 	uint8 readByte(unsigned _int16 address);
 	uint8 readInstruction(unsigned _int16* PC);
+	uint8 MMU::readVram(unsigned _int16 address);
 	void writeByte(unsigned _int16 address, uint8 value);
 	uint8 operator[](unsigned _int16 index);
 	void incrementDIV();

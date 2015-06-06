@@ -117,7 +117,7 @@ void GPU::Step(int cycles){
 	}
 }
 
-uint8 mapPalette(uint8 colorNumber, uint8 palette){
+uint8 GPU::mapPalette(uint8 colorNumber, uint8 palette){
 	uint8 colorBits = palette & (0x03u << colorNumber * 2);
 	colorBits >>= colorNumber * 2;
 	return colorBits;
@@ -129,13 +129,19 @@ void GPU::drawBGLine(){
 	uint8 yPos;
 	bool isUnsigned = true;
 	bool drawWindow = false;	//is this line in the window
+	uint8 LCDCVal = LCDC;
+	uint8 WYVal = WY;
+	uint8 LYVal = LY;
+	uint8 SCXVal = SCX;
+	uint8 WXVal = WX;
+	uint8 BGPVal = BGP;
 
 	//Check if we are drawing the window
-	if ((LCDC & (1 << 5)) > 0 && (WY <= LY)){
+	if ((LCDCVal & (1 << 5)) > 0 && (WYVal <= LYVal)){
 		drawWindow = true;
 	}
 
-	if ((LCDC & (1 << 4)) > 0){	//is the tile data signed or not
+	if ((LCDCVal & (1 << 4)) > 0){	//is the tile data signed or not
 		tileDataAddress = 0x8000u;
 	}
 	else{
@@ -144,7 +150,7 @@ void GPU::drawBGLine(){
 	}
 
 	if (drawWindow){	//determine the address for the background data
-		if ((LCDC & (1 << 6)) > 0){
+		if ((LCDCVal & (1 << 6)) > 0){
 			tileMapAddress = 0x9C00u;
 		}
 		else{
@@ -152,7 +158,7 @@ void GPU::drawBGLine(){
 		}
 	}
 	else{
-		if ((LCDC & (1 << 3)) > 0){
+		if ((LCDCVal & (1 << 3)) > 0){
 			tileMapAddress = 0x9C00u;
 		}
 		else{
@@ -161,43 +167,48 @@ void GPU::drawBGLine(){
 	}
 
 	if (drawWindow){
-		yPos = LY - WY;	//what Y coordinate are we on (0-144)
+		yPos = LYVal - WYVal;	//what Y coordinate are we on (0-144)
 	}
 	else{
-		yPos = SCY + LY;
+		yPos = SCY + LYVal;
 	}
 
 	//which row in the tile are we on
 	uint16 tileRow = (((uint16)(yPos / 8)) * 32);
+	int oldTileAddress = -1;
+
+	uint8 upperData, lowerData;
 
 	//draw the scanline
 	for (int i = 0; i < 160; i++){
-		uint8 xPos = i + SCX;
-		if (drawWindow && i >= WX)
-			xPos = i - WX;
+		uint8 xPos = i + SCXVal;
+		if (drawWindow && i >= WXVal)
+			xPos = i - WXVal;
 		uint16 tileCol = xPos / 8;
 		uint16 tileAddress = tileMapAddress + tileRow + tileCol;
-		//made this an int because it can either be a signed or unsigned number, so this should prevent overflow
-		_int16 tileNum;
-		if (isUnsigned){
-			tileNum = m->readByte(tileAddress);
-		}
-		else{
-			tileNum = (_int16)m->readByte(tileAddress);
-		}
 
-		uint16 tileLocation = tileDataAddress;
-		if (isUnsigned){
-			tileLocation += (tileNum * 16);
-		}
-		else{
-			tileLocation += ((tileNum + 128) * 16);
-		}
+		if (oldTileAddress != tileAddress){	//only read from the MMU when needed.
+			_int16 tileNum;
+			if (isUnsigned){
+				tileNum = m->readVram(tileAddress);
+			}
+			else{
+				tileNum = (_int16)m->readVram(tileAddress);
+			}
 
-		uint8 line = yPos % 8;
-		line *= 2;
-		uint8 upperData = m->readByte(tileLocation + line);
-		uint8 lowerData = m->readByte(tileLocation + line + 1);
+			uint16 tileLocation = tileDataAddress;
+			if (isUnsigned){
+				tileLocation += (tileNum * 16);
+			}
+			else{
+				tileLocation += ((tileNum + 128) * 16);
+			}
+
+			uint8 line = yPos % 8;
+			line *= 2;
+			upperData = m->readVram(tileLocation + line);
+			lowerData = m->readVram(tileLocation + line + 1);
+		}
 
 		int colorBit = xPos % 8;	//which bit are we looking at in the line's data
 		colorBit -= 7;
@@ -205,29 +216,29 @@ void GPU::drawBGLine(){
 
 		uint8 color = ((lowerData & (1 << colorBit)) > 0) ? 0x2u : 0;	//get the color number
 		color |= ((upperData & (1 << colorBit)) > 0) ? 0x1u : 0;
-		uint8 palette = mapPalette(color, BGP);
+		uint8 palette = mapPalette(color, BGPVal);
 
 		//data[i][LY] = palette;
 		switch (palette){
 		case 0x00u:
-			data[LY - 1][i][0] = 0xFFu;
-			data[LY - 1][i][1] = 0xFFu;
-			data[LY - 1][i][2] = 0xFFu;
+			data[LYVal - 1][i][0] = 0xFFu;
+			data[LYVal - 1][i][1] = 0xFFu;
+			data[LYVal - 1][i][2] = 0xFFu;
 			break;
 		case 0x01u:
-			data[LY - 1][i][0] = 0x77u;
-			data[LY - 1][i][1] = 0x77u;
-			data[LY - 1][i][2] = 0x77u;
+			data[LYVal - 1][i][0] = 0x77u;
+			data[LYVal - 1][i][1] = 0x77u;
+			data[LYVal - 1][i][2] = 0x77u;
 			break;
 		case 0x02u:
-			data[LY - 1][i][0] = 0xCCu;
-			data[LY - 1][i][1] = 0xCCu;
-			data[LY - 1][i][2] = 0xCCu;
+			data[LYVal - 1][i][0] = 0xCCu;
+			data[LYVal - 1][i][1] = 0xCCu;
+			data[LYVal - 1][i][2] = 0xCCu;
 			break;
 		case 0x03u:
-			data[LY - 1][i][0] = 0x00u;
-			data[LY - 1][i][1] = 0x00u;
-			data[LY - 1][i][2] = 0x00u;
+			data[LYVal - 1][i][0] = 0x00u;
+			data[LYVal - 1][i][1] = 0x00u;
+			data[LYVal - 1][i][2] = 0x00u;
 			break;
 		}
 	}

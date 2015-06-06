@@ -4,7 +4,6 @@
 #include "GPU.h"
 #include "MMU.h"
 #include "CPU.h"
-#include <SDL.h>
 #include "wx\wx.h"
 #include "GB.h"
 

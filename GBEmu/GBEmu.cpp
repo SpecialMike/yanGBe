@@ -1,11 +1,9 @@
-
 #include "stdafx.h"
 #include "GBEmu.h"
 #include "GPU.h"
 #include <sstream>
 #include "wx/dcbuffer.h"
 #include "wx/image.h"
-#include <gl/GL.h>
 #include "ImagePanel.h"
 #include "MainFrame.h"
 
@@ -58,6 +56,7 @@ void MainApp::KeyDown(int key){
 }
 
 void MainApp::Update(wxTimerEvent& event){
+
 	if (g == nullptr)
 		return;
 	g->UpdateToVBlank();
