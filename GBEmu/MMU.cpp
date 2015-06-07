@@ -24,8 +24,13 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 	memset(bios, 0, sizeof(uint8) * 0xFFu);
 	vram = new uint8[0x1FFFu];					//8000-9FFF
 	memset(vram, 0, sizeof(uint8) * 0x1FFFu);
-	eram = new uint8[(0x1FFFu * numRAMBanks)];	//A000-BFFF
-	memset(eram, 0, sizeof(uint8) * 0x1FFFu);
+	if (numRAMBanks == 0){
+		eram = new uint8[(0x1FFFu * numRAMBanks)];	//A000-BFFF
+		memset(eram, 0, sizeof(uint8) * 0x1FFFu);
+	}
+	else{
+		eram = nullptr;
+	}
 	wram = new uint8[0x3DFFu];					//C000-FDFF
 	memset(wram, 0, sizeof(uint8) * 0x3DFFu);
 	oam = new uint8[0xFFu];						//FE00-FE9F
@@ -107,9 +112,12 @@ uint8 MMU::readByte(unsigned _int16 address){
 	case 0xA000:
 	case 0xB000:
 		//Eram should be buffered; many games have a battery to keep volatile memory alive
+		if (eram == nullptr)
+			break;
 		switch (type){
 		//(MBC1) If in 16/8 mode, all of eram is accessable
 		//(MBC1) If in 4/32 mode, eram is banked (4 banks of 8KB)
+		case MBC5:
 		case MBC1:
 			if (type == romSwitch){
 				return eram[address - 0xA000u];
@@ -225,6 +233,7 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		//(MBC3)Same as MBC1, also enables read/writes to clock registers on cart
 		case MBC1:
 		case MBC3:
+		case MBC5:
 			if ((value & 0xFu) == 0xAu)
 				ramWriteEnable = true;
 			else
@@ -233,6 +242,12 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		}
 		break;
 	case 0x2000:
+		//(MBC5)Lower 8 bits of ROM bank number
+		//(MBC5)Unlike others, writing 0 actually gives rom bank 0
+		if (type == MBC5){
+			currentROMBank &= ~(0xFF);
+			currentROMBank |= (value);
+		}
 	case 0x3000:
 		switch (type){
 		//(MBC1)Switch bank to XXXBBBBB_2, where X=don't care (0x00-0x1F)
@@ -255,10 +270,14 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		//(MBC3)Writing a value of XBBBBBBB_2 selects the appropriate ROM bank (value of 0 is a value of 1 again)
 		case MBC3:
 			currentROMBank &= 0x80u;
-			currentROMBank |= (value & 0x7F);
+			currentROMBank |= (value & 0x7Fu);
 			if (currentROMBank == 0)
 				currentROMBank++;
 			break;
+		//(MBC5) Write the MSB (bit 9) of the rom bank from the LSB of value
+		case MBC5:
+			currentROMBank &= ~(0x100u);
+			currentROMBank |= (value & 0x01u);
 		}
 		break;
 	case 0x4000:
@@ -287,6 +306,8 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 			else if (value >= 0x08u && value <= 0x0cu){
 				currentRTCRegister = getRTCReg(value);
 			}
+		case MBC5:
+			currentRAMBank = (value & 0x0Fu);
 		}
 		break;
 	case 0x6000:
@@ -302,6 +323,7 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 				mode = ramSwitch;
 				currentRAMBank = 0;	//no ram switching
 			}
+		case MBC5:
 		case MBC2:
 			break;
 		//(MBC3)Latch clock data if 0x00 then 0x01 is written (write current time to RTC registers)
@@ -321,6 +343,8 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		break;
 	case 0xA000:
 	case 0xB000:
+		if (eram == nullptr)
+			break;
 		//(MBC2) only addressable from 0xA000 to 0xA1FF
 		//(MBC2) only write lower 4 bits of value (512 x 4bit values)
 		if (!ramWriteEnable)

@@ -34,7 +34,7 @@ private:
 	void DMATransfer(uint8 value);
 public:
 	enum cartType{
-		MBC1, MBC2, MBC3
+		MBC1, MBC2, MBC3, MBC5
 	};
 	bool inBIOS;
 	MMU(cartType t, int numRom, int numRam, uint8* cartRom);

@@ -19,6 +19,7 @@ public:
 	void UpdateToVBlank();
 	bool openROM(const char* file);
 private:
+	uint8* cartROM;
 
 };
 

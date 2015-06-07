@@ -3,22 +3,23 @@
 #include "GB.h"
 #include <Windows.h>
 
-uint8 *cartROM;
-
 using namespace std;
 
 GB::GB(const char* filePath)
 {
+	m = nullptr;
 	if (!openROM(filePath)){
 		std::cout << "Error opening file";
 	}
-	g = new GPU();
-	c = new CPU();
-	m = new MMU(MMU::MBC1,1,1,cartROM);
-	g->Reset(m, c);
-	c->setGPU(g);
-	c->setMMU(m);
-	m->setCPU(c);
+	else{
+		g = new GPU();
+		c = new CPU();
+		//m = new MMU(MMU::MBC1,1,1,cartROM);
+		g->Reset(m, c);
+		c->setGPU(g);
+		c->setMMU(m);
+		m->setCPU(c);
+	}
 }
 
 GB::GB(){
@@ -51,7 +52,8 @@ bool GB::openROM(const char* file){
 	fclose(input);
 	getCartInfo();
 	//m = new MMU(MMU::MBC1, 1, 1, cartROM);
-	return true;
+	return m != nullptr;
+	//return true;
 
 }
 
@@ -81,6 +83,7 @@ void GB::getCartInfo(){
 	switch (cartROM[0x146u]){
 	case 0:
 		printf("ROM ONLY\n");
+		type = MMU::MBC1;
 		break;
 	case 1:
 		printf("ROM+MBC1\n");
@@ -104,18 +107,23 @@ void GB::getCartInfo(){
 		break;
 	case 8:
 		printf("ROM+RAM\n");
+		type = MMU::MBC1;
 		break;
 	case 9:
 		printf("ROM+RAM+BATT\n");
+		type = MMU::MBC1;
 		break;
 	case 0xBu:
 		printf("ROM+MMM01\n");
+		type = MMU::MBC1;
 		break;
 	case 0xCu:
 		printf("ROM+MMM01+SRAM\n");
+		type = MMU::MBC1;
 		break;
 	case 0xDu:
 		printf("ROM+MMM01+SRAM+BATT\n");
+		type = MMU::MBC1;
 		break;
 	case 0xFu:
 		printf("ROM+MBC3+TIMER+BATT\n");
@@ -139,36 +147,47 @@ void GB::getCartInfo(){
 		break;
 	case 0x19u:
 		printf("ROM+MBC5\n");
+		type = MMU::MBC5;
 		break;
 	case 0x1Au:
 		printf("ROM+MBC5+RAM\n");
+		type = MMU::MBC5;
 		break;
 	case 0x1Bu:
 		printf("ROM+MBC5+RAM+BATT\n");
+		type = MMU::MBC5;
 		break;
 	case 0x1Cu:
 		printf("ROM+MBC5+RUMBLE\n");
+		type = MMU::MBC5;
 		break;
 	case 0x1Du:
 		printf("ROM+MBC5+RUMBLE+SRAM\n");
+		type = MMU::MBC5;
 		break;
 	case 0x1Eu:
 		printf("ROM+MBC5+RUMBLE+SRAM+BATT\n");
+		type = MMU::MBC5;
 		break;
 	case 0x1Fu:
 		printf("Pocket Camera\n");
+		type = MMU::MBC1;
 		break;
 	case 0xFDu:
 		printf("Bandai TAMA5\n");
+		type = MMU::MBC1;
 		break;
 	case 0xFEu:
 		printf("Hudson HuC-3\n");
+		type = MMU::MBC1;
 		break;
 	case 0xFFu:
 		printf("Hudson HuC-1\n");
+		type = MMU::MBC1;
 		break;
 	default:
 		printf("Error\n");
+		return;
 	}
 
 	printf("ROM size: ");
@@ -215,6 +234,7 @@ void GB::getCartInfo(){
 		break;
 	default:
 		printf("Error\n");
+		return;
 	}
 
 	printf("RAM size: ");
@@ -241,6 +261,7 @@ void GB::getCartInfo(){
 		break;
 	default:
 		printf("Error\n");
+		return;
 	}
 
 	printf("Destination code: ");
@@ -255,6 +276,7 @@ void GB::getCartInfo(){
 		printf("Error\n");
 	}
 	m = new MMU(type, numRomBanks, numRamBanks, cartROM);
+	printf("done");
 }
 
 void GB::UpdateToVBlank(){
@@ -265,7 +287,7 @@ void GB::UpdateToVBlank(){
 	while (cycles < cyclesPerUpdate){
 		int addedCycles = c->update();
 
-		g->Step(cycles);
+		g->Step(addedCycles);
 		c->handleInterrupts();
 		c->updateTimer(addedCycles);
 		cycles += addedCycles;
