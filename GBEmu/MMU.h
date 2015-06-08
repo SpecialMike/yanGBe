@@ -47,4 +47,7 @@ public:
 	void incrementDIV();
 	void incrementLY();
 	void setCPU(CPU* cpu);
+	
+	int keyColumn;
+	uint8 column[2];
 };

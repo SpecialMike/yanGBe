@@ -52,6 +52,10 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 	}
 
 	RTCLatchPossible = false;
+
+	keyColumn = 0;
+	column[0] = 0xFF;
+	column[1] = 0xFF;
 }
 
 void MMU::setCPU(CPU* cpu){
@@ -170,6 +174,12 @@ uint8 MMU::readByte(unsigned _int16 address){
 				//0xFF80-0xFFFF : Working RAM (128 bytes of high speed RAM)
 				return zram[address & 0x7F];
 			}
+			else if (address == 0xFF00){
+				if (keyColumn == 0x10)
+					return column[0];
+				else
+					return column[1];
+			}
 			else if (address == 0xFF07){
 				return io[0x07] | 0xF8;
 			}
@@ -254,8 +264,8 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		//(MBC1)Values of B=1 and B=0 are functionally equivalent, bank#0 is accessible from 0x0000-0x3FFF
 		//(MBC1)Values of 0x20, 0x40, and 0x60 will result in 0x21, 0x41, 0x61 respectively
 		case MBC1:
-			currentROMBank &= 0xC0u;	//set lower 5 bits to 0;
-			currentROMBank |= (value & 0x3F);
+			currentROMBank &= 0xE0u;	//set lower 5 bits to 0;
+			currentROMBank |= (value & 0x1F);
 			if (currentROMBank == 0 || currentROMBank == 0x20u || currentROMBank == 0x40u || currentRAMBank == 0x60u)
 				currentROMBank++;
 			std::cout << std::hex << "Switch to " << currentROMBank << std::endl;
@@ -288,9 +298,9 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		//(MBC1)If in 16/8 Mode, set the two most significant ROM address lines to XXXXXXBB_2 (Bits 5 and 6)
 		case MBC1:
 			if (type == romSwitch){
-				currentROMBank &= 0x9Fu; //turn off bits 5 and 6
-				currentROMBank |= ((value<<5) & 0x60u);
-				if (currentROMBank == 0)
+				currentROMBank &= 0x1Fu; //turn off bits 5 and 6
+				currentROMBank |= ((value & 0x03) << 5);
+				if (currentROMBank == 0 || currentROMBank == 0x20u || currentROMBank == 0x40u || currentRAMBank == 0x60u)
 					currentROMBank++;
 				std::cout << std::hex << "Switch to " << currentROMBank << std::endl;
 			}
@@ -386,7 +396,10 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 			if (address > 0xFF7F)
 				zram[address & 0x7Fu] = value;
 			else{
-				if (address == 0xFF04u){	//writes to the DIV register reset the DIV timer
+				if (address == 0xFF00u){	//change which column of keys we are looking at
+					keyColumn = value & 0x30u;
+				}
+				else if (address == 0xFF04u){	//writes to the DIV register reset the DIV timer
 					io[0x04] = 0;
 				}
 				else if (address == 0xFF07){

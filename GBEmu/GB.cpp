@@ -2,6 +2,7 @@
 #include <sstream>
 #include "GB.h"
 #include <Windows.h>
+#include <wx/defs.h>
 
 using namespace std;
 
@@ -80,7 +81,7 @@ void GB::getCartInfo(){
 	printf("Licensee code: %X%X\n", cartROM[0x144u] & 0xFFu, cartROM[0x145u] & 0xFFu);
 	printf("GB/SGB indicator: %X\n", cartROM[0x146u] & 0xFFu);
 	printf("Cartridge type: ");
-	switch (cartROM[0x146u]){
+	switch (cartROM[0x147u]){
 	case 0:
 		printf("ROM ONLY\n");
 		type = MMU::MBC1;
@@ -292,4 +293,70 @@ void GB::UpdateToVBlank(){
 	}
 
 	g->Update();
+}
+
+void GB::buttonUp(int key){
+	switch (key){
+	case WXK_UP:
+		m->column[1] &= 0xB;
+		std::cout << "up";
+		break;
+	case WXK_DOWN:
+		m->column[1] &= 0x7;
+		std::cout << "down";
+		break;
+	case WXK_LEFT:
+		m->column[1] &= 0xD;
+		std::cout << "left";
+		break;
+	case WXK_RIGHT:
+		m->column[1] &= 0xE;
+		std::cout << "right";
+		break;
+	case WXK_RETURN:
+		m->column[0] &= 0x7;
+		std::cout << "start";
+		break;
+	case '\\':
+		m->column[0] &= 0xB;
+		std::cout << "select";
+		break;
+	case 'A':
+		m->column[0] &= 0xE;
+		std::cout << "a";
+		break;
+	case 'B':
+		m->column[0] &= 0xD;
+		std::cout << "b";
+		break;
+	}
+}
+
+void GB::buttonDown(int key){
+	switch (key){
+	case WXK_UP:
+		m->column[1] |= 0x4;
+		break;
+	case WXK_DOWN:
+		m->column[1] |= 0x8;
+		break;
+	case WXK_LEFT:
+		m->column[1] |= 0x2;
+		break;
+	case WXK_RIGHT:
+		m->column[1] |= 0x1;
+		break;
+	case WXK_RETURN:
+		m->column[0] |= 0x8;
+		break;
+	case '\\':
+		m->column[0] |= 0x4;
+		break;
+	case 'A':
+		m->column[0] |= 0x1;
+		break;
+	case 'B':
+		m->column[0] |= 0x2;
+		break;
+	}
 }

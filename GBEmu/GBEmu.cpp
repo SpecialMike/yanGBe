@@ -15,6 +15,8 @@ wxIMPLEMENT_APP_NO_MAIN(MainApp);
 
 BEGIN_EVENT_TABLE(MainApp, wxApp)
 	EVT_TIMER(wxID_EXECUTE, MainApp::Update)
+	EVT_KEY_DOWN(MainApp::KeyDown)
+	EVT_KEY_UP(MainApp::KeyUp)
 END_EVENT_TABLE()
 
 bool MainApp::OnInit(){
@@ -47,12 +49,16 @@ void MainApp::Draw(){
 
 }
 
-void MainApp::KeyUp(int key){
-
+void MainApp::KeyUp(wxKeyEvent &evt){
+	if (g == nullptr)
+		return;
+	g->buttonUp(evt.GetKeyCode());
 }
 
-void MainApp::KeyDown(int key){
-
+void MainApp::KeyDown(wxKeyEvent &evt){
+	if (g == nullptr)
+		return;
+	g->buttonDown(evt.GetKeyCode());
 }
 
 void MainApp::Update(wxTimerEvent& event){

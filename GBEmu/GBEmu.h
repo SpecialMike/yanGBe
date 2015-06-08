@@ -40,8 +40,8 @@ public:
 	GB* g;
 	MainFrame* frame;
 	void Draw();
-	void KeyUp(int key);
-	void KeyDown(int key);
+	void KeyUp(wxKeyEvent &evt);
+	void KeyDown(wxKeyEvent &evt);
 	void Update(wxTimerEvent& event);
 	ImagePanel* panel;
 protected:

@@ -18,6 +18,8 @@ public:
 	void getCartInfo();
 	void UpdateToVBlank();
 	bool openROM(const char* file);
+	void buttonUp(int key);
+	void buttonDown(int key);
 private:
 	uint8* cartROM;
 
