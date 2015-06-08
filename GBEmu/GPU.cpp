@@ -188,12 +188,12 @@ void GPU::drawBGLine(){
 		uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 
 		if (oldTileAddress != tileAddress){	//only read from the MMU when needed.
-			_int16 tileNum;
+			_int8 tileNum;
 			if (isUnsigned){
 				tileNum = m->readVram(tileAddress);
 			}
 			else{
-				tileNum = (_int16)m->readVram(tileAddress);
+				tileNum = (_int8)m->readVram(tileAddress);
 			}
 
 			uint16 tileLocation = tileDataAddress;
@@ -244,7 +244,7 @@ void GPU::drawBGLine(){
 	}
 }
 
-void drawSpriteLine(){
+void GPU::drawSpriteLine(){
 
 }
 

@@ -6,8 +6,6 @@
 class CPU;
 class MMU;
 
-	void drawBGLine();
-	void drawSpriteLine();
 class GPU
 {
 private:
@@ -17,6 +15,7 @@ private:
 	CPU* c;
 	void SetLCDStatus();
 	void drawBGLine();
+	void drawSpriteLine();
 public:
 	GPU();
 	~GPU();
