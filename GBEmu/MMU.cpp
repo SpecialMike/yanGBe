@@ -24,7 +24,7 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 	memset(bios, 0, sizeof(uint8) * 0xFFu);
 	vram = new uint8[0x1FFFu];					//8000-9FFF
 	memset(vram, 0, sizeof(uint8) * 0x1FFFu);
-	if (numRAMBanks == 0){
+	if (numRAMBanks != 0){
 		eram = new uint8[(0x1FFFu * numRAMBanks)];	//A000-BFFF
 		memset(eram, 0, sizeof(uint8) * 0x1FFFu);
 	}
@@ -254,10 +254,11 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		//(MBC1)Values of B=1 and B=0 are functionally equivalent, bank#0 is accessible from 0x0000-0x3FFF
 		//(MBC1)Values of 0x20, 0x40, and 0x60 will result in 0x21, 0x41, 0x61 respectively
 		case MBC1:
-			currentROMBank &= 0xE0u;	//set lower 5 bits to 0;
-			currentROMBank |= (value & 0x1F);
+			currentROMBank &= 0xC0u;	//set lower 5 bits to 0;
+			currentROMBank |= (value & 0x3F);
 			if (currentROMBank == 0 || currentROMBank == 0x20u || currentROMBank == 0x40u || currentRAMBank == 0x60u)
 				currentROMBank++;
+			std::cout << std::hex << "Switch to " << currentROMBank << std::endl;
 			break;
 		//(MBC2)Switch ROM bank to XXXXBBBB_2, where X=don't care
 		//(MBC2)Address must have the LSB of the upper address byte = 1 (X1XX,X3XX,X5XX,etc.)
@@ -288,9 +289,10 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 		case MBC1:
 			if (type == romSwitch){
 				currentROMBank &= 0x9Fu; //turn off bits 5 and 6
-				currentROMBank |= (value & 0x60u);
+				currentROMBank |= ((value<<5) & 0x60u);
 				if (currentROMBank == 0)
 					currentROMBank++;
+				std::cout << std::hex << "Switch to " << currentROMBank << std::endl;
 			}
 			else{	//RAM switching
 				currentRAMBank = (value & 0x03u);

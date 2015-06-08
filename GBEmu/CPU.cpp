@@ -368,7 +368,11 @@ uint8 SET(int n, uint8 reg){
 }
 
 int CPU::OP(uint8 code){
-	if (code == 0x76){
+//	std::cout << std::hex << "PC: " << PC << " OP: " << std::hex << (short)code << std::endl;
+	if (code == 0xFF){
+		printf("");
+	}
+	if (PC == 0x49a1){
 		printf("");
 	}
 	uint16 nn = 0;

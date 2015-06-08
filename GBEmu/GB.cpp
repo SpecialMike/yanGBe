@@ -245,19 +245,19 @@ void GB::getCartInfo(){
 		break;
 	case 1:
 		printf("16Kbit - 1 bank\n");
-		numRomBanks = 1;
+		numRamBanks = 1;
 		break;
 	case 2:
 		printf("64Kbit - 1 bank\n");
-		numRomBanks = 1;
+		numRamBanks = 1;
 		break;
 	case 3:
 		printf("256Kbit - 4 banks\n");
-		numRomBanks = 4;
+		numRamBanks = 4;
 		break;
 	case 4:
 		printf("1Mbit - 16 banks\n");
-		numRomBanks = 16;
+		numRamBanks = 16;
 		break;
 	default:
 		printf("Error\n");
@@ -276,11 +276,9 @@ void GB::getCartInfo(){
 		printf("Error\n");
 	}
 	m = new MMU(type, numRomBanks, numRamBanks, cartROM);
-	printf("done");
 }
 
 void GB::UpdateToVBlank(){
-
 	const int cyclesPerUpdate = 70224;
 	int cycles = 0;
 
