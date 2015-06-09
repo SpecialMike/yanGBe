@@ -199,7 +199,7 @@ void GPU::drawBGLine(){
 
 			uint16 tileLocation = tileDataAddress;
 			if (isUnsigned){
-				tileLocation += (tileNum * 16);
+				tileLocation += (((uint8)tileNum) * 16);
 			}
 			else{
 				tileLocation += ((tileNum + 128) * 16);
@@ -282,7 +282,7 @@ void GPU::drawSpriteLine(){
 			
 			for (int x = 0; x < 8; x++){
 				//Pixel is onscreen and it has priority or BG color is 0
-				if ((xCoord + x >= 0) && ((xCoord + x) < 160) && (!priority || data[LYVal-1][xCoord + x] == 0)){
+				if ((xCoord + x >= 0) && ((xCoord + x) < 160) && (!priority || *data[LYVal-1][xCoord + x] == 0xFF)){
 					//check if this pixel's color is 0
 					int xTemp = x;
 					if (xFlip)
