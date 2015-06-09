@@ -10,6 +10,7 @@ ImagePanel::ImagePanel(wxFrame* parent) : wxPanel(parent)
 	data = nullptr;
 	image.Create(160, 144, false);
 	image.Clear(0);
+	this->ToggleWindowStyle(wxTAB_TRAVERSAL);
 }
 
 ImagePanel::~ImagePanel()

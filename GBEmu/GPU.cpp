@@ -7,6 +7,7 @@ int modeClock = 0;
 int scanlineCounter = 456;	//456 cycles to draw a scanline
 
 unsigned _int32 colors[4] = { 0xFFFFFFu, 0xC0C0C0u, 0x808080u, 0x000000u };
+unsigned _int32 spriteColors[2][4] = { { 0xFFFFFFu, 0x808080u, 0x000000u, 0x000000u }, { 0xFFFFFFu, 0xC0C0C0u, 0x000000u, 0x000000u } };
 
 GPU::GPU()
 {
@@ -134,7 +135,7 @@ void GPU::drawBGLine(){
 	uint8 LYVal = LY;
 	uint8 SCXVal = SCX;
 	uint8 WXVal = WX;
-	uint8 BGPVal = BGP;
+	uint8 BGPVal = BGP;	
 
 	//Check if we are drawing the window
 	if ((LCDCVal & (1 << 5)) > 0 && (WYVal <= LYVal)){
@@ -244,8 +245,82 @@ void GPU::drawBGLine(){
 	}
 }
 
+//TODO: The number of sprites on one scanline is limited to 10
 void GPU::drawSpriteLine(){
+	//check if we are using tall sprites
+	bool tallSprites = ((LCDC & 0x4) > 0);
+	uint8 LYVal = LY;
+	uint8 BGPVal = BGP;
 
+	//iterate through each sprite in OAM (0xFE00-0xFE9F)
+	for (uint16 spriteAddress = 0xFE00; spriteAddress <= 0xFE9F; spriteAddress += 4){
+		uint8 yCoord = m->readByte(spriteAddress);
+		uint8 xCoord = m->readByte(spriteAddress + 1);
+		if ((xCoord == 0) | (yCoord == 0)){	//sprite is hidden
+			continue;
+		}
+		yCoord -= 16;
+		xCoord -= 8;
+		if (yCoord <= LYVal && (yCoord + (tallSprites ? 16 : 8)) > LYVal){	//check that the current scanline falls between the sprite's Y-coords
+			uint8 patternNumber = m->readByte(spriteAddress + 2);
+			if (tallSprites)
+				patternNumber &= 0xFE;	//In tall mode, the LSB is always 0
+			uint8 spriteFlags = m->readByte(spriteAddress + 3);
+			bool xFlip = (spriteFlags & 0x20) > 0;
+			bool yFlip = (spriteFlags & 0x40) > 0;
+			bool priority = (spriteFlags & 0x80) > 0;
+			uint8 rowDataUpper;
+			uint8 rowDataLower;
+			if (!yFlip){
+				rowDataUpper = m->readByte(0x8000 + (patternNumber * 16) + ((LYVal - yCoord) * 2));
+				rowDataLower = m->readByte(0x8000 + (patternNumber * 16) + ((LYVal - yCoord) * 2) + 1);
+			}
+			else{
+				rowDataUpper = m->readByte(0x8000 + (patternNumber * 16) + ((7-(LYVal - yCoord)) * 2));
+				rowDataLower = m->readByte(0x8000 + (patternNumber * 16) + ((7-(LYVal - yCoord)) * 2) + 1);
+			}
+			
+			for (int x = 0; x < 8; x++){
+				//Pixel is onscreen and it has priority or BG color is 0
+				if ((xCoord + x >= 0) && ((xCoord + x) < 160) && (!priority || data[LYVal-1][xCoord + x] == 0)){
+					//check if this pixel's color is 0
+					int xTemp = x;
+					if (xFlip)
+						xTemp = 7 - x;
+					xTemp -= 7;
+					xTemp *= -1;
+					uint8 color = ( (rowDataUpper & (1 << xTemp)) > 0) ? 0x2 : 0;
+					color |= ( (rowDataLower & (1 << xTemp)) > 0) ? 0x1 : 0;
+					if (color != 0){
+						uint8 palette = mapPalette(color, BGPVal);
+						switch (palette){
+						case 0x00u:
+							data[LYVal - 1][xCoord + x][0] = 0xFFu;
+							data[LYVal - 1][xCoord + x][1] = 0xFFu;
+							data[LYVal - 1][xCoord + x][2] = 0xFFu;
+							break;
+						case 0x01u:
+							data[LYVal - 1][xCoord + x][0] = 0x77u;
+							data[LYVal - 1][xCoord + x][1] = 0x77u;
+							data[LYVal - 1][xCoord + x][2] = 0x77u;
+							break;
+						case 0x02u:
+							data[LYVal - 1][xCoord + x][0] = 0xCCu;
+							data[LYVal - 1][xCoord + x][1] = 0xCCu;
+							data[LYVal - 1][xCoord + x][2] = 0xCCu;
+							break;
+						case 0x03u:
+							data[LYVal - 1][xCoord + x][0] = 0x00u;
+							data[LYVal - 1][xCoord + x][1] = 0x00u;
+							data[LYVal - 1][xCoord + x][2] = 0x00u;
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+	
 }
 
 void GPU::updateLine(){

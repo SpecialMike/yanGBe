@@ -295,44 +295,36 @@ void GB::UpdateToVBlank(){
 	g->Update();
 }
 
-void GB::buttonUp(int key){
+void GB::buttonDown(int key){
 	switch (key){
 	case WXK_UP:
 		m->column[1] &= 0xB;
-		std::cout << "up";
 		break;
 	case WXK_DOWN:
 		m->column[1] &= 0x7;
-		std::cout << "down";
 		break;
 	case WXK_LEFT:
 		m->column[1] &= 0xD;
-		std::cout << "left";
 		break;
 	case WXK_RIGHT:
 		m->column[1] &= 0xE;
-		std::cout << "right";
 		break;
 	case WXK_RETURN:
 		m->column[0] &= 0x7;
-		std::cout << "start";
 		break;
 	case '\\':
 		m->column[0] &= 0xB;
-		std::cout << "select";
 		break;
 	case 'A':
 		m->column[0] &= 0xE;
-		std::cout << "a";
 		break;
 	case 'B':
 		m->column[0] &= 0xD;
-		std::cout << "b";
 		break;
 	}
 }
 
-void GB::buttonDown(int key){
+void GB::buttonUp(int key){
 	switch (key){
 	case WXK_UP:
 		m->column[1] |= 0x4;
