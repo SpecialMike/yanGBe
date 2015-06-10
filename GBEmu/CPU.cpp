@@ -2506,6 +2506,8 @@ void CPU::SaveState(std::ofstream& fout){
 	fout.write((char*)&L, 1);
 	fout.write((char*)&dividerCounter, sizeof(dividerCounter));
 	fout.write((char*)&timerCounter, sizeof(timerCounter));
+	fout.write((char*)&SP, sizeof(SP));
+	fout.write((char*)&PC, sizeof(PC));
 }
 
 void CPU::LoadState(std::ifstream& fin){
@@ -2521,4 +2523,6 @@ void CPU::LoadState(std::ifstream& fin){
 	fin.read((char*)&L, 1);
 	fin.read((char*)&dividerCounter, sizeof(dividerCounter));
 	fin.read((char*)&timerCounter, sizeof(timerCounter));
+	fin.read((char*)&SP, sizeof(SP));
+	fin.read((char*)&PC, sizeof(PC));
 }

@@ -184,7 +184,7 @@ void GPU::drawBGLine(){
 	for (int i = 0; i < 160; i++){
 		uint8 xPos = i + SCXVal;
 		if (drawWindow && i >= WXVal)
-			xPos = i - WXVal;
+			xPos = i - WXVal + 7;
 		uint16 tileCol = xPos / 8;
 		uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 
