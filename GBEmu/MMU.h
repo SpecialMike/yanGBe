@@ -50,4 +50,7 @@ public:
 	
 	int keyColumn;
 	uint8 column[2];
+
+	void SaveState(std::ofstream& fout);
+	void LoadState(std::ifstream& fin);
 };

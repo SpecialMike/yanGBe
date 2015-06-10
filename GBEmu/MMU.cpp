@@ -447,3 +447,21 @@ void MMU::incrementDIV(){
 void MMU::incrementLY(){
 	io[0x44]++;
 }
+
+void MMU::SaveState(std::ofstream& fout){
+	fout.write((char*)vram, 0x1FFF);
+	fout.write((char*)eram, 0x1FFF * numRAMBanks);
+	fout.write((char*)wram, 0x3DFF);
+	fout.write((char*)oam, 0xFF);
+	fout.write((char*)io, 0x7F);
+	fout.write((char*)zram, 0x7F);
+} 
+
+void MMU::LoadState(std::ifstream& fin){
+	fin.read((char*)vram, 0x1FFF);
+	fin.read((char*)eram, 0x1FFF * numRAMBanks);
+	fin.read((char*)wram, 0x3DFF);
+	fin.read((char*)oam, 0xFF);
+	fin.read((char*)io, 0x7F);
+	fin.read((char*)zram, 0x7F);
+}

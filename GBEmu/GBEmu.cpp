@@ -62,7 +62,8 @@ void MainApp::KeyDown(wxKeyEvent &evt){
 }
 
 void MainApp::Update(wxTimerEvent& event){
-
+	if (frame->stateChangeRequested)
+		return;
 	if (g == nullptr)
 		return;
 	g->UpdateToVBlank();

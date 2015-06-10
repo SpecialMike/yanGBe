@@ -223,3 +223,4 @@ mem_timing/*
 GBEmu/output.txt
 packages/*
 *.sav
+*.dat

@@ -36,6 +36,9 @@ public:
 	void setGPU(GPU* gpu);
 	void updateTimer(int cycles);
 	bool handleInterrupts();
+
+	void SaveState(std::ofstream& fout);
+	void LoadState(std::ifstream& fin);
 };
 
 #endif

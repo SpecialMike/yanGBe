@@ -10,7 +10,7 @@ GB::GB(const char* filePath)
 {
 	m = nullptr;
 	if (!openROM(filePath)){
-		std::cout << "Error opening file";
+		cout << "Error opening file";
 	}
 	else{
 		g = new GPU();
@@ -40,7 +40,7 @@ GB::~GB()
 bool GB::openROM(const char* file){
 	FILE* input = fopen(file, "r+");
 	if (input == NULL){
-		std::cout << "Error opening ROM at " << file;
+		cout << "Error opening ROM at " << file;
 		return false;
 	}
 
@@ -53,6 +53,9 @@ bool GB::openROM(const char* file){
 	fclose(input);
 	getCartInfo();
 	//m = new MMU(MMU::MBC1, 1, 1, cartROM);
+
+	isProcessing = false;
+
 	return m != nullptr;
 	//return true;
 
@@ -280,6 +283,7 @@ void GB::getCartInfo(){
 }
 
 void GB::UpdateToVBlank(){
+	isProcessing = true;
 	const int cyclesPerUpdate = 70224;
 	int cycles = 0;
 
@@ -293,6 +297,7 @@ void GB::UpdateToVBlank(){
 	}
 
 	g->Update();
+	isProcessing = false;
 }
 
 void GB::buttonDown(int key){
@@ -351,4 +356,23 @@ void GB::buttonUp(int key){
 		m->column[0] |= 0x2;
 		break;
 	}
+}
+
+void GB::SaveState(const char* filePath){
+	if (isProcessing){
+		printf("Is Processing");
+	}
+	ofstream fout;
+	fout.open(filePath, ios::binary);
+	m->SaveState(fout);
+	c->SaveState(fout);
+	fout.close();
+}
+
+void GB::LoadState(const char* filePath){
+	ifstream fin;
+	fin.open(filePath, ios::binary);
+	m->LoadState(fin);
+	c->LoadState(fin);
+	fin.close();
 }

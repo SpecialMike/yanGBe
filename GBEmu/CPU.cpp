@@ -12,7 +12,7 @@
 #define R_DE ((D<<8) | E)
 
 std::bitset<8> F; //F = flags: F7 = Zero flag, F6 = Subtract Flag, F5 = Half Carry flag, F4 = Carry Flag, F3-F0 always 0
-uint8 A = 0x01u, B, C, D, E, H, L;//A = accumulator 
+uint8 A, B, C, D, E, H, L;//A = accumulator 
 
 CPU::CPU()
 {
@@ -2492,4 +2492,33 @@ int CPU::update(){
 		printf("Error: %4X %X", PC - 1, m->readByte(PC - 1));
 	}
 	return cycles;
+}
+
+void CPU::SaveState(std::ofstream& fout){
+	fout.write((char*)&A, 1);
+	unsigned long n = F.to_ulong();
+	fout.write((char*)&n, sizeof(n));
+	fout.write((char*)&B, 1);
+	fout.write((char*)&C, 1);
+	fout.write((char*)&D, 1);
+	fout.write((char*)&E, 1);
+	fout.write((char*)&H, 1);
+	fout.write((char*)&L, 1);
+	fout.write((char*)&dividerCounter, sizeof(dividerCounter));
+	fout.write((char*)&timerCounter, sizeof(timerCounter));
+}
+
+void CPU::LoadState(std::ifstream& fin){
+	fin.read((char*)&A, 1);
+	unsigned long n;
+	fin.read((char*)&n, sizeof(n));
+	F = n;
+	fin.read((char*)&B, 1);
+	fin.read((char*)&C, 1);
+	fin.read((char*)&D, 1);
+	fin.read((char*)&E, 1);
+	fin.read((char*)&H, 1);
+	fin.read((char*)&L, 1);
+	fin.read((char*)&dividerCounter, sizeof(dividerCounter));
+	fin.read((char*)&timerCounter, sizeof(timerCounter));
 }
