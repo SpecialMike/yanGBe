@@ -3,6 +3,7 @@
 
 BEGIN_EVENT_TABLE(ImagePanel, wxPanel)
 	EVT_PAINT(ImagePanel::paintEvent)
+	EVT_SIZE(ImagePanel::OnSize)
 END_EVENT_TABLE()
 
 ImagePanel::ImagePanel(wxFrame* parent) : wxPanel(parent)
@@ -11,6 +12,8 @@ ImagePanel::ImagePanel(wxFrame* parent) : wxPanel(parent)
 	image.Create(160, 144, false);
 	image.Clear(0);
 	this->ToggleWindowStyle(wxTAB_TRAVERSAL);
+	w = -1;
+	h = -1;
 }
 
 ImagePanel::~ImagePanel()
@@ -33,5 +36,13 @@ void ImagePanel::paintNow(){
 }
 
 void ImagePanel::render(wxDC& dc){
-	dc.DrawBitmap(image, 0, 0, false);
+	wxBitmap resized = wxBitmap(image.Scale(w, h));
+	dc.DrawBitmap(resized, 0, 0, false);
+}
+
+void ImagePanel::OnSize(wxSizeEvent& event){
+	wxClientDC dc(this);
+	dc.GetSize(&w, &h);
+	Refresh();
+	event.Skip();
 }

@@ -17,7 +17,7 @@ public:
 	CPU* c;
 	void getCartInfo();
 	void UpdateToVBlank();
-	bool openROM(const char* file);
+	void openROM(const char* file);
 	void buttonUp(int key);
 	void buttonDown(int key);
 	void SaveState(const char* filePath);
@@ -25,7 +25,7 @@ public:
 	bool isProcessing;
 private:
 	uint8* cartROM;
-
+	unsigned char signature[10];
 };
 
 #endif

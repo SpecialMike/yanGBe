@@ -15,7 +15,11 @@ public:
 	void paintEvent(wxPaintEvent& event);
 	void paintNow();
 	void render(wxDC& dc);
+	void OnSize(wxSizeEvent& event);
+private:
+	int w, h;
 
+protected:
 	DECLARE_EVENT_TABLE()
 };
 

@@ -9,18 +9,33 @@ using namespace std;
 GB::GB(const char* filePath)
 {
 	m = nullptr;
-	if (!openROM(filePath)){
-		cout << "Error opening file";
+	try{
+		openROM(filePath);
 	}
-	else{
-		g = new GPU();
-		c = new CPU();
-		//m = new MMU(MMU::MBC1,1,1,cartROM);
-		g->Reset(m, c);
-		c->setGPU(g);
-		c->setMMU(m);
-		m->setCPU(c);
+	catch (const char* ex){
+		throw ex;
 	}
+
+	g = new GPU();
+	c = new CPU();
+
+	g->Reset(m, c);
+	c->setGPU(g);
+	c->setMMU(m);
+	m->setCPU(c);
+
+	isProcessing = false;
+
+	signature[0] = 0x3A;
+	signature[1] = 0x43;
+	signature[2] = 0x29;
+	signature[3] = 0x32;
+	signature[4] = 0xB9;
+	signature[5] = 0x86;
+	signature[6] = 0x6A;
+	signature[7] = 0x61;
+	signature[8] = 0xE8;
+	signature[9] = 0x81;
 }
 
 GB::GB(){
@@ -37,11 +52,11 @@ GB::~GB()
 	delete m;
 }
 
-bool GB::openROM(const char* file){
+void GB::openROM(const char* file){
 	FILE* input = fopen(file, "r+");
 	if (input == NULL){
 		cout << "Error opening ROM at " << file;
-		return false;
+		throw "File could not be opened.";
 	}
 
 	fseek(input, 0, SEEK_END);
@@ -51,13 +66,12 @@ bool GB::openROM(const char* file){
 	cartROM = new uint8[size];
 	fread(cartROM, sizeof(uint8), size, input);
 	fclose(input);
-	getCartInfo();
-	//m = new MMU(MMU::MBC1, 1, 1, cartROM);
-
-	isProcessing = false;
-
-	return m != nullptr;
-	//return true;
+	try{
+		getCartInfo();
+	}
+	catch (const char* ex){
+		throw ex;
+	}
 
 }
 
@@ -191,7 +205,7 @@ void GB::getCartInfo(){
 		break;
 	default:
 		printf("Error\n");
-		return;
+		throw "Cartridge not properly formatted.";
 	}
 
 	printf("ROM size: ");
@@ -238,7 +252,7 @@ void GB::getCartInfo(){
 		break;
 	default:
 		printf("Error\n");
-		return;
+		throw "Cartridge not properly formatted.";
 	}
 
 	printf("RAM size: ");
@@ -265,7 +279,7 @@ void GB::getCartInfo(){
 		break;
 	default:
 		printf("Error\n");
-		return;
+		throw "Cartridge not properly formatted.";
 	}
 
 	printf("Destination code: ");
@@ -278,6 +292,7 @@ void GB::getCartInfo(){
 		break;
 	default:
 		printf("Error\n");
+		throw "Cartridge not properly formatted.";
 	}
 	m = new MMU(type, numRomBanks, numRamBanks, cartROM);
 }
@@ -357,13 +372,12 @@ void GB::buttonUp(int key){
 		break;
 	}
 }
+	
 
 void GB::SaveState(const char* filePath){
-	if (isProcessing){
-		printf("Is Processing");
-	}
 	ofstream fout;
 	fout.open(filePath, ios::binary);
+	fout.write((char*)signature, 10);
 	m->SaveState(fout);
 	c->SaveState(fout);
 	fout.close();
@@ -372,6 +386,16 @@ void GB::SaveState(const char* filePath){
 void GB::LoadState(const char* filePath){
 	ifstream fin;
 	fin.open(filePath, ios::binary);
+	unsigned char testSignature[10] = { 0 };
+	fin.read((char*)testSignature, 10);
+	bool passed = true;
+	for (int i = 0; i < 10; i++){
+		if (testSignature[i] != signature[i]){
+			passed = false;
+		}
+	}
+	if (!passed)
+		throw "Error opening save file.";
 	m->LoadState(fin);
 	c->LoadState(fin);
 	fin.close();

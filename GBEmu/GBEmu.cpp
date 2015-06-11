@@ -23,7 +23,9 @@ bool MainApp::OnInit(){
 	g = nullptr;
 	wxInitAllImageHandlers();
 	wxBoxSizer* sizer = new wxBoxSizer(wxHORIZONTAL);
-	frame = new MainFrame(wxT("yanGBe"), wxDefaultPosition, wxSize(320, 240), g);
+
+	//Size is weird, 160x144 for the screen, 20 height for the tool bar and then some random amount.
+	frame = new MainFrame(wxT("yanGBe"), wxDefaultPosition, wxSize(160 + 16, 144 + 20 + 37), g);
 	panel = new ImagePanel(frame);
 
 	sizer->Add(panel, 1, wxEXPAND);

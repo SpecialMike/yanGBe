@@ -33,7 +33,13 @@ MainFrame::~MainFrame()
 void MainFrame::OnOpen(wxCommandEvent&){
 	wxFileDialog* OpenDialog = new wxFileDialog(this, _T("Choose a ROM"), _T(""), wxEmptyString, _T("*.*"), wxFD_OPEN);
 	if (OpenDialog->ShowModal() == wxID_OK){
-		(*g) = new GB(OpenDialog->GetPath().c_str().AsChar());
+		try{
+			(*g) = new GB(OpenDialog->GetPath().c_str().AsChar());
+		}
+		catch (const char* ex){
+			wxMessageDialog dialog(NULL, ex, _T(""), wxICON_ERROR);
+			dialog.ShowModal();
+		}
 	}
 	OpenDialog->Close();
 }
@@ -48,7 +54,13 @@ void MainFrame::LoadState(wxCommandEvent&){
 		return;
 	wxFileDialog* OpenDialog = new wxFileDialog(NULL, _T("Choose a Save State"), _T(""), wxEmptyString, _T("*.*"), wxFD_OPEN);
 	if (OpenDialog->ShowModal() == wxID_OK){
-		(*g)->LoadState(OpenDialog->GetPath().c_str().AsChar());
+		try{
+			(*g)->LoadState(OpenDialog->GetPath().c_str().AsChar());
+		}
+		catch (const char* ex){
+			wxMessageDialog dialog(NULL, ex, _T(""), wxICON_ERROR);
+			dialog.ShowModal();
+		}
 	}
 	OpenDialog->Close();
 	stateChangeRequested = false;

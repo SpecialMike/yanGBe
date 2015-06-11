@@ -138,7 +138,7 @@ void GPU::drawBGLine(){
 	uint8 BGPVal = BGP;	
 
 	//Check if we are drawing the window
-	if ((LCDCVal & (1 << 5)) > 0 && (WYVal <= LYVal)){
+	if ((LCDCVal & (1 << 5)) > 0 && (WYVal < LYVal)){
 		drawWindow = true;
 	}
 
@@ -183,8 +183,8 @@ void GPU::drawBGLine(){
 	//draw the scanline
 	for (int i = 0; i < 160; i++){
 		uint8 xPos = i + SCXVal;
-		if (drawWindow && i >= WXVal)
-			xPos = i - WXVal + 7;
+		if (drawWindow && i >= WXVal-7)
+			xPos = i - (WXVal-7);
 		uint16 tileCol = xPos / 8;
 		uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 

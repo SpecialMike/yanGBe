@@ -455,8 +455,8 @@ void MMU::SaveState(std::ofstream& fout){
 	fout.write((char*)oam, 0xFF);
 	fout.write((char*)io, 0x7F);
 	fout.write((char*)zram, 0x7F);
-	fout.write((char*)currentRAMBank, sizeof(currentRAMBank));
-	fout.write((char*)currentROMBank, sizeof(currentROMBank));
+	fout.write((char*)&currentRAMBank, sizeof(currentRAMBank));
+	fout.write((char*)&currentROMBank, sizeof(currentROMBank));
 } 
 
 void MMU::LoadState(std::ifstream& fin){
@@ -466,6 +466,6 @@ void MMU::LoadState(std::ifstream& fin){
 	fin.read((char*)oam, 0xFF);
 	fin.read((char*)io, 0x7F);
 	fin.read((char*)zram, 0x7F);
-	fin.read((char*)currentRAMBank, sizeof(currentRAMBank));
-	fin.read((char*)currentROMBank, sizeof(currentROMBank));
+	fin.read((char*)&currentRAMBank, sizeof(currentRAMBank));
+	fin.read((char*)&currentROMBank, sizeof(currentROMBank));
 }
