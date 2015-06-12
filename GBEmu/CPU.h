@@ -28,6 +28,8 @@ public:
 	int Update();
 	void UpdateTimer(int cycles);
 
+	int timerPeriod;
+
 protected:
 
 private:
@@ -40,11 +42,11 @@ private:
 	int dividerCounter;
 	GPU* g;
 	bool interruptEnabled;
+	bool isHalted;
 	MMU* m;
 	uint16 PC = 0x0100u;
 	uint16 SP = 0xFFFEu;
 	int timerCounter;
-	int timerPeriod;
 
 };
 

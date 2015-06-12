@@ -41,6 +41,7 @@ GB::GB(const char* filePath)
 	signature[12] = 0x33;
 	signature[13] = 0xC4;
 	signature[14] = 0xED;
+
 }
 
 GB::~GB()
@@ -297,6 +298,7 @@ void GB::GetCartInfo(){
 
 void GB::UpdateToVBlank(){
 	isProcessing = true;
+
 	const int cyclesPerUpdate = 70224;
 	int cycles = 0;
 
@@ -310,6 +312,7 @@ void GB::UpdateToVBlank(){
 	}
 
 	g->Update();
+
 	isProcessing = false;
 }
 

@@ -185,10 +185,10 @@ void GPU::DrawBGLine(){
 		uint8 xPos = i + SCXVal;
 		if (drawWindow && i >= WXVal-7)
 			xPos = i - (WXVal-7);
-		uint16 tileCol = xPos / 8;
-		uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 
-		if (oldTileAddress != tileAddress){	//only read from the MMU when needed.
+		if (i%8 == 0){	//only read from the MMU when needed.
+			uint16 tileCol = xPos / 8;
+			uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 			_int8 tileNum;
 			if (isUnsigned){
 				tileNum = m->ReadVram(tileAddress);

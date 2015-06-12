@@ -35,7 +35,8 @@ bool MainApp::OnInit(){
 	panel->SetFocus();
 
 	wxTimer* timer = new wxTimer(this, wxID_EXECUTE);
-	timer->Start(16);
+	timer->Start(8);
+	lastUpdate = GetTickCount64();
 	return true;
 }
 
@@ -71,6 +72,11 @@ void MainApp::Update(wxTimerEvent& event){
 	g->UpdateToVBlank();
 	panel->SetData(&g->g->data[0][0][0]);
 	panel->PaintNow();
+
+	unsigned long long thisUpdate = GetTickCount64();
+
+	cout << "Update took " << thisUpdate - lastUpdate << "ms" << endl;
+	lastUpdate = thisUpdate;
 }
 
 int main(int argc, char* argv[]){

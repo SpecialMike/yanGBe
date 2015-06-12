@@ -50,7 +50,7 @@ protected:
 	DECLARE_EVENT_TABLE()
 
 private:
-
+	unsigned long long lastUpdate;
 };
 DECLARE_APP(MainApp)
 

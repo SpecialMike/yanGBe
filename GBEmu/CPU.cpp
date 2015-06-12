@@ -30,6 +30,7 @@ CPU::CPU()
 
 	dividerCounter = 40;
 	timerPeriod = 1024;
+	isHalted = false;
 }
 
 void CPU::SetMMU(MMU* mem){
@@ -2420,6 +2421,8 @@ void CPU::HandleStop(){
 }
 
 void CPU::HandleHalt(){
+	isHalted = true;
+	/*
 	bool interrupted = false;
 	while (!interrupted){
 		const int cyclesPerUpdate = 70224;
@@ -2435,10 +2438,12 @@ void CPU::HandleHalt(){
 		}
 		g->Update();
 	}
+	*/
 }
 
 void CPU::RequestInterrupt(interrupts i){
 	m->WriteByte(0xFF0Fu, IF | (0x1u << i));
+	isHalted = false;
 }
 
 bool CPU::HandleInterrupts(){
@@ -2487,6 +2492,8 @@ void CPU::ServiceInterrupt(int bit){
 }
 
 int CPU::Update(){
+	if (isHalted)
+		return 4;
 	int cycles = OP(m->ReadInstruction(&PC));
 	if (cycles == -1){
 		printf("Error: %4X %X", PC - 1, m->ReadByte(PC - 1));
