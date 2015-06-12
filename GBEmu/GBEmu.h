@@ -42,7 +42,7 @@ public:
 	virtual bool OnInit();
 	virtual int OnExit();
 	virtual void Resize(int newWidth, int newHeight);
-	void Update(wxTimerEvent& event);
+	void Update(wxIdleEvent& event);
 
 	MainFrame* frame;
 	GB* g;
@@ -53,9 +53,9 @@ protected:
 	DECLARE_EVENT_TABLE()
 
 private:
-	int CalculateFPS(double lastFPS);
+	double CalculateFPS(double lastFPS);
 
-	unsigned long long lastUpdate;
+	wxLongLong lastUpdate;
 	int fpsIndex = 0;
 	double fpsSum = 0;
 	double fpsList[FPS_SAMPLES];

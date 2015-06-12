@@ -14,9 +14,9 @@ using namespace std;
 wxIMPLEMENT_APP_NO_MAIN(MainApp);
 
 BEGIN_EVENT_TABLE(MainApp, wxApp)
-	EVT_TIMER(wxID_EXECUTE, MainApp::Update)
 	EVT_KEY_DOWN(MainApp::KeyDown)
 	EVT_KEY_UP(MainApp::KeyUp)
+	EVT_IDLE(MainApp::Update)
 END_EVENT_TABLE()
 
 bool MainApp::OnInit(){
@@ -33,9 +33,6 @@ bool MainApp::OnInit(){
 
 	frame->Show();
 	panel->SetFocus();
-
-	wxTimer* timer = new wxTimer(this, wxID_EXECUTE);
-	timer->Start(15);
 
 	watch = new wxStopWatch();
 	
@@ -67,20 +64,28 @@ void MainApp::KeyDown(wxKeyEvent &evt){
 	g->ButtonDown(evt.GetKeyCode());
 }
 
-void MainApp::Update(wxTimerEvent& event){
-	unsigned long long thisUpdate = watch->Time();
+void MainApp::Update(wxIdleEvent& event){
+	wxLongLong thisUpdate = watch->TimeInMicro();
+	if (thisUpdate - lastUpdate < 16750){	// 1/59.7 = 16750 microseconds
+		event.RequestMore();
+	}
+	else{
+		if (frame->stateChangeRequested)
+			return;
+		if (g == nullptr)
+			return;
+		double FPS = (1 / (double)(thisUpdate.ToLong() - lastUpdate.ToLong())) * 1000000;
+		lastUpdate = thisUpdate;
+		string fpsString = to_string(CalculateFPS(FPS));
+		fpsString.resize(4);
+		frame->SetTitle("yanGBe " + fpsString);
 
-	if (frame->stateChangeRequested)
-		return;
-	if (g == nullptr)
-		return;
-	double FPS = 1 / (double)(thisUpdate - lastUpdate) * 1000;
-	lastUpdate = thisUpdate;
-	frame->SetTitle("yanGBe " + to_string( CalculateFPS(FPS) ) );
+		g->UpdateToVBlank();
+		panel->SetData(&g->g->data[0][0][0]);
+		panel->PaintNow();
 
-	g->UpdateToVBlank();
-	panel->SetData(&g->g->data[0][0][0]);
-	panel->PaintNow();
+		event.RequestMore();
+	}
 }
 
 int main(int argc, char* argv[]){
@@ -96,11 +101,11 @@ std::string HexDec2String(int hexIn) {
 }
 
 //returns a moving average of the last FPS_SAMPLES updates
-int MainApp::CalculateFPS(double lastFPS){
+double MainApp::CalculateFPS(double lastFPS){
 	fpsSum -= fpsList[fpsIndex];
 	fpsSum += lastFPS;
 	fpsList[fpsIndex] = lastFPS;
 	fpsIndex = (fpsIndex + 1) % FPS_SAMPLES;
 
-	return (int)(fpsSum / FPS_SAMPLES);
+	return (fpsSum / FPS_SAMPLES);
 }
