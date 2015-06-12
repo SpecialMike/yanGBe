@@ -35,7 +35,7 @@ bool MainApp::OnInit(){
 	panel->SetFocus();
 
 	wxTimer* timer = new wxTimer(this, wxID_EXECUTE);
-	timer->Start(16);
+	timer->Start(15);
 
 	watch = new wxStopWatch();
 	
@@ -70,17 +70,17 @@ void MainApp::KeyDown(wxKeyEvent &evt){
 void MainApp::Update(wxTimerEvent& event){
 	unsigned long long thisUpdate = watch->Time();
 
-	cout << "Update start " << thisUpdate - lastUpdate << "ms" << endl;
-	lastUpdate = thisUpdate;
 	if (frame->stateChangeRequested)
 		return;
 	if (g == nullptr)
 		return;
+	double FPS = 1 / (double)(thisUpdate - lastUpdate) * 1000;
+	lastUpdate = thisUpdate;
+	frame->SetTitle("yanGBe " + to_string( CalculateFPS(FPS) ) );
+
 	g->UpdateToVBlank();
 	panel->SetData(&g->g->data[0][0][0]);
 	panel->PaintNow();
-
-	cout << "\tUpdate took " << watch->Time() - thisUpdate << "ms" << endl;
 }
 
 int main(int argc, char* argv[]){
@@ -93,4 +93,14 @@ std::string HexDec2String(int hexIn) {
 	// returns decimal value of hex
 	sprintf(hexString, "%X", hexIn);
 	return std::string(hexString);
+}
+
+//returns a moving average of the last FPS_SAMPLES updates
+int MainApp::CalculateFPS(double lastFPS){
+	fpsSum -= fpsList[fpsIndex];
+	fpsSum += lastFPS;
+	fpsList[fpsIndex] = lastFPS;
+	fpsIndex = (fpsIndex + 1) % FPS_SAMPLES;
+
+	return (int)(fpsSum / FPS_SAMPLES);
 }

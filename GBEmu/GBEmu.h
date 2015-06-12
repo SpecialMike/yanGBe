@@ -28,6 +28,8 @@
 #define uint16 unsigned _int16
 #define uint32 unsigned _int32
 
+#define FPS_SAMPLES 100
+
 class MainFrame;
 class ImagePanel;
 
@@ -51,7 +53,12 @@ protected:
 	DECLARE_EVENT_TABLE()
 
 private:
+	int CalculateFPS(double lastFPS);
+
 	unsigned long long lastUpdate;
+	int fpsIndex = 0;
+	double fpsSum = 0;
+	double fpsList[FPS_SAMPLES];
 };
 DECLARE_APP(MainApp)
 
