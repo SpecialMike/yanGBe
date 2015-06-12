@@ -10,35 +10,42 @@ class MMU;
 
 class CPU
 {
-private:
-	MMU* m;
-	GPU* g;
-	uint16 SP = 0xFFFEu;
-	uint16 PC = 0x0100u;
-	void serviceInterrupt(int bit);
-	int OP(uint8 code);
-	void CB(uint8 code);
-	int timerCounter;
-	int dividerCounter;
-	bool interruptEnabled;
-	void handleHalt();
-	void handleStop();
+
 public:
-	CPU();
-	~CPU();
 	enum interrupts{
 		VBLANK = 0, LCD, TIMER, SERIAL, JOYPAD
 	};
-	void requestInterrupt(interrupts i);
-	int update();
-	int timerPeriod;
-	void setMMU(MMU* mem);
-	void setGPU(GPU* gpu);
-	void updateTimer(int cycles);
-	bool handleInterrupts();
 
-	void SaveState(std::ofstream& fout);
+	CPU();
+	~CPU();
+
 	void LoadState(std::ifstream& fin);
+	bool HandleInterrupts();
+	void RequestInterrupt(interrupts i);
+	void SaveState(std::ofstream& fout);
+	void SetMMU(MMU* mem);
+	void SetGPU(GPU* gpu);
+	int Update();
+	void UpdateTimer(int cycles);
+
+protected:
+
+private:
+	void CB(uint8 code);
+	void HandleHalt();
+	void HandleStop();
+	int OP(uint8 code);
+	void ServiceInterrupt(int bit);
+
+	int dividerCounter;
+	GPU* g;
+	bool interruptEnabled;
+	MMU* m;
+	uint16 PC = 0x0100u;
+	uint16 SP = 0xFFFEu;
+	int timerCounter;
+	int timerPeriod;
+
 };
 
 #endif

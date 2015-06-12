@@ -35,10 +35,10 @@ void GPU::SetLCDStatus(){
 	uint8 currStatus = STAT;
 	if (!((LCDC & (1 << 7)) > 0)){	//if the LCD is disabled, then reset the line counter, LY and change to mode 1
 		scanlineCounter = 456;
-		m->writeByte(0xFF44u, 0);
+		m->WriteByte(0xFF44u, 0);
 		currStatus &= 0xFCu;
 		currStatus |= 0x01u;
-		m->writeByte(0xFF41u, currStatus);
+		m->WriteByte(0xFF41u, currStatus);
 		return;
 	}
 
@@ -71,19 +71,19 @@ void GPU::SetLCDStatus(){
 	}
 
 	if (modeInterruptEnabled && (mode != newMode)){
-		c->requestInterrupt(CPU::LCD);
+		c->RequestInterrupt(CPU::LCD);
 	}
 
 	if (LY == LYC){
 		currStatus &= 0xFBu;	//Set the coincidence flag
 		currStatus |= 0x04u;
 		if ((currStatus & (1 << 6)) > 0)
-			c->requestInterrupt(CPU::LCD);
+			c->RequestInterrupt(CPU::LCD);
 	}
 	else{
 		currStatus &= 0xFBu;
 	}
-	m->writeByte(0xFF41, currStatus);
+	m->WriteByte(0xFF41, currStatus);
 }
 
 void GPU::Step(int cycles){
@@ -98,22 +98,22 @@ void GPU::Step(int cycles){
 	if (scanlineCounter <= 0){	//done with this scanline, on to the next;
 		scanlineCounter = 456;
 		uint8 line = LY;
-		m->incrementLY();
+		m->IncrementLY();
 
 		if (line == 144){
-			c->requestInterrupt(CPU::VBLANK);
+			c->RequestInterrupt(CPU::VBLANK);
 		}
 
 		if (line > 153){	//VBLANK period is over, reset line to 0
-			m->writeByte(0xFF44, 0);
+			m->WriteByte(0xFF44, 0);
 		}
 
 		if (line < 144){	//the current line within the drawable space, so draw it
 			uint8 currLCDC = LCDC;
 			if ((currLCDC & 0x01u) > 0)
-				drawBGLine();
+				DrawBGLine();
 			if ((currLCDC & 0x02u) > 0)
-				drawSpriteLine();
+				DrawSpriteLine();
 		}
 	}
 }
@@ -124,7 +124,7 @@ uint8 GPU::mapPalette(uint8 colorNumber, uint8 palette){
 	return colorBits;
 }
 
-void GPU::drawBGLine(){
+void GPU::DrawBGLine(){
 	unsigned _int16 tileMapAddress;
 	unsigned _int16 tileDataAddress;
 	uint8 yPos;
@@ -191,10 +191,10 @@ void GPU::drawBGLine(){
 		if (oldTileAddress != tileAddress){	//only read from the MMU when needed.
 			_int8 tileNum;
 			if (isUnsigned){
-				tileNum = m->readVram(tileAddress);
+				tileNum = m->ReadVram(tileAddress);
 			}
 			else{
-				tileNum = (_int8)m->readVram(tileAddress);
+				tileNum = (_int8)m->ReadVram(tileAddress);
 			}
 
 			uint16 tileLocation = tileDataAddress;
@@ -207,8 +207,8 @@ void GPU::drawBGLine(){
 
 			uint8 line = yPos % 8;
 			line *= 2;
-			upperData = m->readVram(tileLocation + line);
-			lowerData = m->readVram(tileLocation + line + 1);
+			upperData = m->ReadVram(tileLocation + line);
+			lowerData = m->ReadVram(tileLocation + line + 1);
 		}
 
 		int colorBit = xPos % 8;	//which bit are we looking at in the line's data
@@ -246,7 +246,7 @@ void GPU::drawBGLine(){
 }
 
 //TODO: The number of sprites on one scanline is limited to 10
-void GPU::drawSpriteLine(){
+void GPU::DrawSpriteLine(){
 	//check if we are using tall sprites
 	bool tallSprites = ((LCDC & 0x4) > 0);
 	uint8 LYVal = LY;
@@ -254,30 +254,30 @@ void GPU::drawSpriteLine(){
 
 	//iterate through each sprite in OAM (0xFE00-0xFE9F)
 	for (uint16 spriteAddress = 0xFE00; spriteAddress <= 0xFE9F; spriteAddress += 4){
-		uint8 yCoord = m->readByte(spriteAddress);
-		uint8 xCoord = m->readByte(spriteAddress + 1);
+		uint8 yCoord = m->ReadByte(spriteAddress);
+		uint8 xCoord = m->ReadByte(spriteAddress + 1);
 		if ((xCoord == 0) | (yCoord == 0)){	//sprite is hidden
 			continue;
 		}
 		yCoord -= 16;
 		xCoord -= 8;
 		if (yCoord <= LYVal && (yCoord + (tallSprites ? 16 : 8)) > LYVal){	//check that the current scanline falls between the sprite's Y-coords
-			uint8 patternNumber = m->readByte(spriteAddress + 2);
+			uint8 patternNumber = m->ReadByte(spriteAddress + 2);
 			if (tallSprites)
 				patternNumber &= 0xFE;	//In tall mode, the LSB is always 0
-			uint8 spriteFlags = m->readByte(spriteAddress + 3);
+			uint8 spriteFlags = m->ReadByte(spriteAddress + 3);
 			bool xFlip = (spriteFlags & 0x20) > 0;
 			bool yFlip = (spriteFlags & 0x40) > 0;
 			bool priority = (spriteFlags & 0x80) > 0;
 			uint8 rowDataUpper;
 			uint8 rowDataLower;
 			if (!yFlip){
-				rowDataUpper = m->readByte(0x8000 + (patternNumber * 16) + ((LYVal - yCoord) * 2));
-				rowDataLower = m->readByte(0x8000 + (patternNumber * 16) + ((LYVal - yCoord) * 2) + 1);
+				rowDataUpper = m->ReadByte(0x8000 + (patternNumber * 16) + ((LYVal - yCoord) * 2));
+				rowDataLower = m->ReadByte(0x8000 + (patternNumber * 16) + ((LYVal - yCoord) * 2) + 1);
 			}
 			else{
-				rowDataUpper = m->readByte(0x8000 + (patternNumber * 16) + ((7-(LYVal - yCoord)) * 2));
-				rowDataLower = m->readByte(0x8000 + (patternNumber * 16) + ((7-(LYVal - yCoord)) * 2) + 1);
+				rowDataUpper = m->ReadByte(0x8000 + (patternNumber * 16) + ((7-(LYVal - yCoord)) * 2));
+				rowDataLower = m->ReadByte(0x8000 + (patternNumber * 16) + ((7-(LYVal - yCoord)) * 2) + 1);
 			}
 			
 			for (int x = 0; x < 8; x++){
@@ -323,11 +323,11 @@ void GPU::drawSpriteLine(){
 	
 }
 
-void GPU::updateLine(){
+void GPU::UpdateLine(){
 	if (LCDC & 0x1u){
-		drawBGLine();
+		DrawBGLine();
 	}
 	if (LCDC & 0x2u){
-		drawSpriteLine();
+		DrawSpriteLine();
 	}
 }

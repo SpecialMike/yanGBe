@@ -8,24 +8,31 @@
 
 class GB
 {
+
 public:
-	GB();
 	GB(const char* filePath);
 	~GB();
+
+	void ButtonDown(int key);
+	void ButtonUp(int key);
+	void GetCartInfo();
+	void LoadState(const char* filePath);
+	void OpenROM(const char* file);
+	void SaveState(const char* filePath);
+	void UpdateToVBlank();
+
+	bool isProcessing;
 	MMU* m;
 	GPU* g;
 	CPU* c;
-	void getCartInfo();
-	void UpdateToVBlank();
-	void openROM(const char* file);
-	void buttonUp(int key);
-	void buttonDown(int key);
-	void SaveState(const char* filePath);
-	void LoadState(const char* filePath);
-	bool isProcessing;
+
+protected:
+
 private:
 	uint8* cartROM;
-	unsigned char signature[10];
+	unsigned char signature[15];
+	char romName[15];
+
 };
 
 #endif

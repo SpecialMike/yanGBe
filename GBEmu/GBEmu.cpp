@@ -54,13 +54,13 @@ void MainApp::Draw(){
 void MainApp::KeyUp(wxKeyEvent &evt){
 	if (g == nullptr)
 		return;
-	g->buttonUp(evt.GetKeyCode());
+	g->ButtonUp(evt.GetKeyCode());
 }
 
 void MainApp::KeyDown(wxKeyEvent &evt){
 	if (g == nullptr)
 		return;
-	g->buttonDown(evt.GetKeyCode());
+	g->ButtonDown(evt.GetKeyCode());
 }
 
 void MainApp::Update(wxTimerEvent& event){
@@ -69,8 +69,8 @@ void MainApp::Update(wxTimerEvent& event){
 	if (g == nullptr)
 		return;
 	g->UpdateToVBlank();
-	panel->setData(&g->g->data[0][0][0]);
-	panel->paintNow();
+	panel->SetData(&g->g->data[0][0][0]);
+	panel->PaintNow();
 }
 
 int main(int argc, char* argv[]){

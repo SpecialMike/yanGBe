@@ -58,7 +58,7 @@ MMU::MMU(cartType t, int numRom, int numRam, uint8* cartRom)
 	column[1] = 0xFF;
 }
 
-void MMU::setCPU(CPU* cpu){
+void MMU::SetCPU(CPU* cpu){
 	c = cpu;
 }
 
@@ -75,12 +75,8 @@ MMU::~MMU()
 	delete RTC;
 }
 
-uint8 MMU::operator[](const unsigned _int16 index){
-	return readByte(index);
-}
-
 //Read the byte from memory at address
-uint8 MMU::readByte(unsigned _int16 address){
+uint8 MMU::ReadByte(unsigned _int16 address){
 	//TODO bank switching, etc.
 	switch (address & 0xF000u){
 	//0x0000-0x3FFF : Cartridge rom (first 16,384 bytes)
@@ -193,12 +189,12 @@ uint8 MMU::readByte(unsigned _int16 address){
 }
 
 //Read the byte from memory at PC and increment PC
-uint8 MMU::readInstruction(unsigned _int16* PC){
+uint8 MMU::ReadInstruction(unsigned _int16* PC){
 	*PC = (*PC + 1) & 0xFFFFu;
-	return readByte(*PC - 1);
+	return ReadByte(*PC - 1);
 }
 
-uint8 MMU::readVram(unsigned _int16 address){
+uint8 MMU::ReadVram(unsigned _int16 address){
 	return vram[address & 0x1FFFu];
 }
 
@@ -224,11 +220,11 @@ RTCRegister getRTCReg(uint8 value){
 void MMU::DMATransfer(uint8 value){
 	uint16 address = value << 8;
 	for (int i = 0; i < 0xA0; i++){
-		this->writeByte(0xFE00 + i, this->readByte(address + i));
+		this->WriteByte(0xFE00 + i, this->ReadByte(address + i));
 	}
 }
 
-void MMU::writeByte(unsigned _int16 address, uint8 value){
+void MMU::WriteByte(unsigned _int16 address, uint8 value){
 	switch (address & 0xF000){
 		//TODO: support for (MBC5), not that its used much anyway
 	case 0x0000:
@@ -440,11 +436,11 @@ void MMU::writeByte(unsigned _int16 address, uint8 value){
 }
 
 //need this because any writes to 0xFF04 or 0xFF44 reset them to 0
-void MMU::incrementDIV(){	
+void MMU::IncrementDIV(){	
 	io[0x04]++;
 }
 
-void MMU::incrementLY(){
+void MMU::IncrementLY(){
 	io[0x44]++;
 }
 

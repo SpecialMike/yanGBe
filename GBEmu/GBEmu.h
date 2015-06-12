@@ -7,22 +7,22 @@
 #include "wx\wx.h"
 #include "GB.h"
 
-#define IE m->readByte(0xFFFF)
-#define IF m->readByte(0xFF0F)
-#define TIMA m->readByte(0xFF05)
-#define TMA m->readByte(0xFF06)
-#define TMC m->readByte(0xFF07)
-#define DIV m->readByte(0xFF04)
+#define IE m->ReadByte(0xFFFF)
+#define IF m->ReadByte(0xFF0F)
+#define TIMA m->ReadByte(0xFF05)
+#define TMA m->ReadByte(0xFF06)
+#define TMC m->ReadByte(0xFF07)
+#define DIV m->ReadByte(0xFF04)
 
-#define LCDC m->readByte(0xFF40u)
-#define STAT m->readByte(0xFF41u)
-#define SCY m->readByte(0xFF42u)
-#define SCX m->readByte(0xFF43u)
-#define LY m->readByte(0xFF44u)
-#define LYC m->readByte(0xFF45u)
-#define BGP m->readByte(0xFF47u)
-#define WY m->readByte(0xFF4Au)
-#define WX m->readByte(0xFF4Bu)
+#define LCDC m->ReadByte(0xFF40u)
+#define STAT m->ReadByte(0xFF41u)
+#define SCY m->ReadByte(0xFF42u)
+#define SCX m->ReadByte(0xFF43u)
+#define LY m->ReadByte(0xFF44u)
+#define LYC m->ReadByte(0xFF45u)
+#define BGP m->ReadByte(0xFF47u)
+#define WY m->ReadByte(0xFF4Au)
+#define WX m->ReadByte(0xFF4Bu)
 
 #define uint8 unsigned _int8
 #define uint16 unsigned _int16
@@ -34,18 +34,23 @@ class ImagePanel;
 class MainApp : public wxApp{
 
 public:
+	void Draw();
+	void KeyDown(wxKeyEvent &evt);
+	void KeyUp(wxKeyEvent &evt);
 	virtual bool OnInit();
 	virtual int OnExit();
 	virtual void Resize(int newWidth, int newHeight);
-	GB* g;
-	MainFrame* frame;
-	void Draw();
-	void KeyUp(wxKeyEvent &evt);
-	void KeyDown(wxKeyEvent &evt);
 	void Update(wxTimerEvent& event);
+
+	MainFrame* frame;
+	GB* g;
 	ImagePanel* panel;
+
 protected:
 	DECLARE_EVENT_TABLE()
+
+private:
+
 };
 DECLARE_APP(MainApp)
 

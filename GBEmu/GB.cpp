@@ -10,7 +10,7 @@ GB::GB(const char* filePath)
 {
 	m = nullptr;
 	try{
-		openROM(filePath);
+		OpenROM(filePath);
 	}
 	catch (const char* ex){
 		throw ex;
@@ -20,9 +20,9 @@ GB::GB(const char* filePath)
 	c = new CPU();
 
 	g->Reset(m, c);
-	c->setGPU(g);
-	c->setMMU(m);
-	m->setCPU(c);
+	c->SetGPU(g);
+	c->SetMMU(m);
+	m->SetCPU(c);
 
 	isProcessing = false;
 
@@ -36,13 +36,12 @@ GB::GB(const char* filePath)
 	signature[7] = 0x61;
 	signature[8] = 0xE8;
 	signature[9] = 0x81;
+	signature[10] = 0x6E;
+	signature[11] = 0xB9;
+	signature[12] = 0x33;
+	signature[13] = 0xC4;
+	signature[14] = 0xED;
 }
-
-GB::GB(){
-	g = new GPU();
-	c = new CPU();
-}
-
 
 GB::~GB()
 {
@@ -52,7 +51,7 @@ GB::~GB()
 	delete m;
 }
 
-void GB::openROM(const char* file){
+void GB::OpenROM(const char* file){
 	FILE* input = fopen(file, "r+");
 	if (input == NULL){
 		cout << "Error opening ROM at " << file;
@@ -67,7 +66,7 @@ void GB::openROM(const char* file){
 	fread(cartROM, sizeof(uint8), size, input);
 	fclose(input);
 	try{
-		getCartInfo();
+		GetCartInfo();
 	}
 	catch (const char* ex){
 		throw ex;
@@ -79,16 +78,15 @@ void GB::openROM(const char* file){
 //
 //Also creates the MMU, because this information contains
 //everything you need to know about it.
-void GB::getCartInfo(){
+void GB::GetCartInfo(){
 	MMU::cartType type;
 	int numRomBanks;
 	int numRamBanks;
 
-	char name[15];
 	for (int i = 0; i <15; i++){
-		name[i] = cartROM[0x134u + i];
+		romName[i] = cartROM[0x134u + i];
 	}
-	printf("Game name: %s\n", name);
+	printf("Game name: %s\n", romName);
 	if (cartROM[0x143u] == 0x80u){
 		printf("For color GB\n");
 	}
@@ -303,11 +301,11 @@ void GB::UpdateToVBlank(){
 	int cycles = 0;
 
 	while (cycles < cyclesPerUpdate){
-		int addedCycles = c->update();
+		int addedCycles = c->Update();
 
 		g->Step(addedCycles);
-		c->handleInterrupts();
-		c->updateTimer(addedCycles);
+		c->HandleInterrupts();
+		c->UpdateTimer(addedCycles);
 		cycles += addedCycles;
 	}
 
@@ -315,7 +313,7 @@ void GB::UpdateToVBlank(){
 	isProcessing = false;
 }
 
-void GB::buttonDown(int key){
+void GB::ButtonDown(int key){
 	switch (key){
 	case WXK_UP:
 		m->column[1] &= 0xB;
@@ -344,7 +342,7 @@ void GB::buttonDown(int key){
 	}
 }
 
-void GB::buttonUp(int key){
+void GB::ButtonUp(int key){
 	switch (key){
 	case WXK_UP:
 		m->column[1] |= 0x4;
@@ -377,7 +375,11 @@ void GB::buttonUp(int key){
 void GB::SaveState(const char* filePath){
 	ofstream fout;
 	fout.open(filePath, ios::binary);
-	fout.write((char*)signature, 10);
+	char hash[15];
+	for (int i = 0; i < 15; i++){
+		hash[i] = signature[i] ^ romName[i];
+	}
+	fout.write((char*)hash, 15);
 	m->SaveState(fout);
 	c->SaveState(fout);
 	fout.close();
@@ -386,11 +388,11 @@ void GB::SaveState(const char* filePath){
 void GB::LoadState(const char* filePath){
 	ifstream fin;
 	fin.open(filePath, ios::binary);
-	unsigned char testSignature[10] = { 0 };
-	fin.read((char*)testSignature, 10);
+	unsigned char testSignature[15] = { 0 };
+	fin.read((char*)testSignature, 15);
 	bool passed = true;
-	for (int i = 0; i < 10; i++){
-		if (testSignature[i] != signature[i]){
+	for (int i = 0; i < 15; i++){
+		if (testSignature[i] != (signature[i] ^ romName[i]) ){
 			passed = false;
 		}
 	}

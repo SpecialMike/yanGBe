@@ -2,7 +2,7 @@
 #include "ImagePanel.h"
 
 BEGIN_EVENT_TABLE(ImagePanel, wxPanel)
-	EVT_PAINT(ImagePanel::paintEvent)
+	EVT_PAINT(ImagePanel::PaintEvent)
 	EVT_SIZE(ImagePanel::OnSize)
 END_EVENT_TABLE()
 
@@ -21,21 +21,21 @@ ImagePanel::~ImagePanel()
 	image.Destroy();
 }
 
-void ImagePanel::setData(unsigned char* d){
+void ImagePanel::SetData(unsigned char* d){
 	image.SetData(d, true);
 }
 
-void ImagePanel::paintEvent(wxPaintEvent&){
+void ImagePanel::PaintEvent(wxPaintEvent&){
 	wxPaintDC dc(this);
-	render(dc);
+	Render(dc);
 }
 
-void ImagePanel::paintNow(){
+void ImagePanel::PaintNow(){
 	wxClientDC dc(this);
-	render(dc);
+	Render(dc);
 }
 
-void ImagePanel::render(wxDC& dc){
+void ImagePanel::Render(wxDC& dc){
 	wxBitmap resized = wxBitmap(image.Scale(w, h));
 	dc.DrawBitmap(resized, 0, 0, false);
 }

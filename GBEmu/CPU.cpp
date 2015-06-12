@@ -32,42 +32,42 @@ CPU::CPU()
 	timerPeriod = 1024;
 }
 
-void CPU::setMMU(MMU* mem){
+void CPU::SetMMU(MMU* mem){
 	m = mem;
-	m->writeByte(0xFF05, 0);
-	m->writeByte(0xFF06, 0);
-	m->writeByte(0xFF07, 0);
-	m->writeByte(0xFF10, 0x80u);
-	m->writeByte(0xFF11, 0xBFu);
-	m->writeByte(0xFF12, 0xF3u);
-	m->writeByte(0xFF14, 0xBFu);
-	m->writeByte(0xFF16, 0x3Fu);
-	m->writeByte(0xFF17, 0);
-	m->writeByte(0xFF19, 0xBFu);
-	m->writeByte(0xFF1A, 0x7Fu);
-	m->writeByte(0xFF1B, 0xFFu);
-	m->writeByte(0xFF1C, 0x9Fu);
-	m->writeByte(0xFF1E, 0xBFu);
-	m->writeByte(0xFF20, 0xFFu);
-	m->writeByte(0xFF21, 0);
-	m->writeByte(0xFF22, 0);
-	m->writeByte(0xFF23, 0xBFu);
-	m->writeByte(0xFF24, 0x77u);
-	m->writeByte(0xFF25, 0xF3u);
-	m->writeByte(0xFF26, 0xF1u);
-	m->writeByte(0xFF40, 0x91u);
-	m->writeByte(0xFF42, 0);
-	m->writeByte(0xFF43, 0);
-	m->writeByte(0xFF45, 0);
-	m->writeByte(0xFF47, 0xFCu);
-	m->writeByte(0xFF48, 0xFFu);
-	m->writeByte(0xFF49, 0xFFu);
-	m->writeByte(0xFF4A, 0);
-	m->writeByte(0xFF4B, 0);
-	m->writeByte(0xFFFF, 0);
+	m->WriteByte(0xFF05, 0);
+	m->WriteByte(0xFF06, 0);
+	m->WriteByte(0xFF07, 0);
+	m->WriteByte(0xFF10, 0x80u);
+	m->WriteByte(0xFF11, 0xBFu);
+	m->WriteByte(0xFF12, 0xF3u);
+	m->WriteByte(0xFF14, 0xBFu);
+	m->WriteByte(0xFF16, 0x3Fu);
+	m->WriteByte(0xFF17, 0);
+	m->WriteByte(0xFF19, 0xBFu);
+	m->WriteByte(0xFF1A, 0x7Fu);
+	m->WriteByte(0xFF1B, 0xFFu);
+	m->WriteByte(0xFF1C, 0x9Fu);
+	m->WriteByte(0xFF1E, 0xBFu);
+	m->WriteByte(0xFF20, 0xFFu);
+	m->WriteByte(0xFF21, 0);
+	m->WriteByte(0xFF22, 0);
+	m->WriteByte(0xFF23, 0xBFu);
+	m->WriteByte(0xFF24, 0x77u);
+	m->WriteByte(0xFF25, 0xF3u);
+	m->WriteByte(0xFF26, 0xF1u);
+	m->WriteByte(0xFF40, 0x91u);
+	m->WriteByte(0xFF42, 0);
+	m->WriteByte(0xFF43, 0);
+	m->WriteByte(0xFF45, 0);
+	m->WriteByte(0xFF47, 0xFCu);
+	m->WriteByte(0xFF48, 0xFFu);
+	m->WriteByte(0xFF49, 0xFFu);
+	m->WriteByte(0xFF4A, 0);
+	m->WriteByte(0xFF4B, 0);
+	m->WriteByte(0xFFFF, 0);
 }
 
-void CPU::setGPU(GPU* gpu){
+void CPU::SetGPU(GPU* gpu){
 	g = gpu;
 }
 
@@ -75,7 +75,7 @@ CPU::~CPU()
 {
 }
 
-void CPU::updateTimer(int cycles){
+void CPU::UpdateTimer(int cycles){
 	int toAdd = 0;
 	if ((TMC & 0x04u) > 0x00u){	//Bit 2 of TMC indicates an enabled timer
 		timerCounter += cycles;
@@ -85,11 +85,11 @@ void CPU::updateTimer(int cycles){
 			timerCounter %= timerPeriod;
 
 			if (TIMA + numIncrements >= 255){
-				m->writeByte(0xFF05, TIMA + numIncrements + TMA);
-				requestInterrupt(TIMER);
+				m->WriteByte(0xFF05, TIMA + numIncrements + TMA);
+				RequestInterrupt(TIMER);
 			}
 			else{
-				m->writeByte(0xFF05, TIMA + numIncrements);
+				m->WriteByte(0xFF05, TIMA + numIncrements);
 			}
 		}
 
@@ -101,7 +101,7 @@ void CPU::updateTimer(int cycles){
 		int numIncrements = dividerCounter / 256;
 		dividerCounter %= 256;
 		for (numIncrements; numIncrements > 0; numIncrements--)
-			m->incrementDIV();
+			m->IncrementDIV();
 	}
 }
 
@@ -383,11 +383,11 @@ int CPU::OP(uint8 code){
 	case 0x00u: //NOP (do nothing)
 		return 4;
 	case 0x01u: //LD BC, nn Load a 16-bit immediate nn into BC
-		C = m->readByte(PC++);
-		B = m->readByte(PC++);
+		C = m->ReadByte(PC++);
+		B = m->ReadByte(PC++);
 		return 12;
 	case 0x02u: //LD (BC), A Load A into (BC)
-		m->writeByte(R_BC, A);
+		m->WriteByte(R_BC, A);
 		return 8;
 	case 0x03u: //INC BC Increment BC
 		temp = R_BC + 1;
@@ -404,7 +404,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (B & 0xFu) == 0xFu);
 		return 4;
 	case 0x06u: //LD B,n Load an 8-bit immediate n into B
-		B = m->readByte(PC++);
+		B = m->ReadByte(PC++);
 		return 8;
 	case 0x07u: //RLCA Rotate A left. Flags: set Z if zero, N and H reset, C contains the old bit 7
 		F.set(FLAG_C, A > 0x7Fu);
@@ -414,16 +414,16 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, false);
 		return 4;
 	case 0x08u: //LD (nn),SP Load value at SP into 16-bit immediate address (nn)
-		nn = m->readByte(PC++);
-		nn |= (m->readByte(PC++) << 8);
-		m->writeByte(nn, SP & 0xFFu);
-		m->writeByte(nn + 1, SP >> 8);
+		nn = m->ReadByte(PC++);
+		nn |= (m->ReadByte(PC++) << 8);
+		m->WriteByte(nn, SP & 0xFFu);
+		m->WriteByte(nn + 1, SP >> 8);
 		return 20;
 	case 0x09u: //ADD HL,BC Add BC to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		ADDHL(R_BC);
 		return 8;
 	case 0x0Au: //LD A,(BC) load value at (BC) into A
-		A = m->readByte(R_BC);
+		A = m->ReadByte(R_BC);
 		return 8;
 	case 0x0Bu: //DEC BC Decrement BC
 		temp = R_BC - 1;
@@ -440,7 +440,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (C & 0xFu) == 0xFu);
 		return 4;
 	case 0x0Eu: //LD C,n Load an 8-bit immediate n into C
-		C = m->readByte(PC++);
+		C = m->ReadByte(PC++);
 		return 8;
 	case 0x0Fu: //RRCA Rotate A right. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0;
 		F.set(FLAG_C, A & 0x1u);
@@ -450,14 +450,14 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, false);
 		return 4;
 	case 0x10u: //STOP Halt CPU and LCD display until button pressed. Check for additional 0x00u after the opcode
-		handleStop();
+		HandleStop();
 		return 4;
 	case 0x11u: //LD DE,nn Load a 16-bit immediate nn into DE
-		E = m->readByte(PC++);
-		D = m->readByte(PC++);
+		E = m->ReadByte(PC++);
+		D = m->ReadByte(PC++);
 		return 12;
 	case 0x12u: //LD (DE),A Load value at A into (DE)
-		m->writeByte(R_DE, A);
+		m->WriteByte(R_DE, A);
 		return 8;
 	case 0x13u: //INC DE Increment DE
 		temp = R_DE + 1;
@@ -474,7 +474,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (D & 0xFu) == 0xFu);
 		return 4;
 	case 0x16u: //LD D,n Load an 8-bit immediate n into D
-		D = m->readByte(PC++);
+		D = m->ReadByte(PC++);
 		return 8;
 	case 0x17u: //RLA Rotate A left through Carry Flag. Flags: Z - set if result is zero; N,H - reset; C - contains old bit 7
 		temp = (F[FLAG_C]) ? 1 : 0; //old carry to go to A's bit one
@@ -485,13 +485,13 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, false);
 		return 4;
 	case 0x18u: //JR n Jump to PC+n where n is an 8-bit immediate
-		PC += ((_int8)m->readByte(PC++));
+		PC += ((_int8)m->ReadByte(PC++));
 		return 12;
 	case 0x19u: //ADD HL,DE Add DE to HL. Flags:N - reset; H - set if carry from bit 11; C - set if carry from bit 15.
 		ADDHL(R_DE);
 		return 8;
 	case 0x1Au: //LD A,(DE) Load value at (DE) to A
-		A = m->readByte(R_DE);
+		A = m->ReadByte(R_DE);
 		return 8;
 	case 0x1Bu: //DEC DE Decrement DE
 		temp = R_DE - 1;
@@ -508,7 +508,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (E & 0xFu) == 0xFu);
 		return 4;
 	case 0x1Eu: //LD E,n Load an 8-bit immediate n into E
-		E = m->readByte(PC++);
+		E = m->ReadByte(PC++);
 		return 8;
 	case 0x1Fu: //RRA Rotate A right through Carry flag. Flags:Z - set if result is zero; N,H - reset; C - contains old bit 0
 		temp = (F[FLAG_C]) ? 0x80u : 0; //old carry to go to A's bit seven
@@ -520,7 +520,7 @@ int CPU::OP(uint8 code){
 		return 4;
 	case 0x20u: //JR NZ,n Jump to PC+n if Z flag == 0
 		if (!F[FLAG_ZERO]){
-			PC += ((_int8)m->readByte(PC++));
+			PC += ((_int8)m->ReadByte(PC++));
 			return 12;
 		}
 		else{
@@ -528,11 +528,11 @@ int CPU::OP(uint8 code){
 			return 8;
 		}
 	case 0x21u: //LD HL,nn Load a 16-bit immediate nn into HL
-		L = m->readByte(PC++);
-		H = m->readByte(PC++);
+		L = m->ReadByte(PC++);
+		H = m->ReadByte(PC++);
 		return 12;
 	case 0x22u: //LDI (HL),A Load value at A into (HL), increment HL
-		m->writeByte(R_HL, A);
+		m->WriteByte(R_HL, A);
 		temp = R_HL + 1;
 		H = temp >> 8 & 0xFFu;
 		L = temp & 0xFFu;
@@ -552,7 +552,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (H & 0xFu) == 0xFu);
 		return 4;
 	case 0x26u: //LD H,n Load an 8-bit immediate n into H
-		H = m->readByte(PC++);
+		H = m->ReadByte(PC++);
 		return 8;
 	case 0x27u: //DAA Decimal adjust A. Flags:Z - set if A is zero; H - reset; C - set or reset, depending on operation
 		temp = A;
@@ -581,7 +581,7 @@ int CPU::OP(uint8 code){
 		return 4;
 	case 0x28u: //JR Z,n Jump to PC+n if Z flag == 1
 		if (F[FLAG_ZERO]){
-			PC += ((_int8)m->readByte(PC++));
+			PC += ((_int8)m->ReadByte(PC++));
 			return 12;
 		}
 		else{
@@ -592,7 +592,7 @@ int CPU::OP(uint8 code){
 		ADDHL(R_HL);
 		return 8;
 	case 0x2Au: //LDI A,(HL) Load value at (HL) into A, increment HL
-		A = m->readByte(R_HL);
+		A = m->ReadByte(R_HL);
 		temp = R_HL + 1;
 		H = temp >> 8 & 0xFFu;
 		L = temp & 0xFFu;
@@ -612,7 +612,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (L & 0xFu) == 0xFu);
 		return 4;
 	case 0x2Eu: //LD L,n Load an 8-bit immediate n into L
-		L = m->readByte(PC++);
+		L = m->ReadByte(PC++);
 		return 8;
 	case 0x2Fu: //CPL Compliment A (flip all bits). Flags:N,H - set
 		A = ~A;
@@ -621,7 +621,7 @@ int CPU::OP(uint8 code){
 		return 4;
 	case 0x30u: //JR NC,n Jump to PC+n if C flag == 0
 		if (!F[FLAG_C]){
-			PC += ((_int8)m->readByte(PC++));
+			PC += ((_int8)m->ReadByte(PC++));
 			return 12;
 		}
 		else{
@@ -630,12 +630,12 @@ int CPU::OP(uint8 code){
 		}
 	case 0x31u: //LD SP,nn Load a 16-bit immediate nn into SP
 		//SP = m->readByte(PC++) | (m->readByte(PC++) << 8);
-		nn = m->readByte(PC++);
-		nn |= m->readByte(PC++) << 8;
+		nn = m->ReadByte(PC++);
+		nn |= m->ReadByte(PC++) << 8;
 		SP = nn;
 		return 12;
 	case 0x32u: //LDD (HL),A Put A into (HL), decrement HL
-		m->writeByte(R_HL, A);
+		m->WriteByte(R_HL, A);
 		temp = R_HL - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
@@ -645,19 +645,19 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0x34u: //INC (HL) Increment (HL). Flags:Z - Set if result is zero; N - reset, H - set if carry from bit 3
 	{
-		uint8 n = m->readByte(R_HL);
+		uint8 n = m->ReadByte(R_HL);
 		INC(&n);
-		m->writeByte(R_HL, n);
+		m->WriteByte(R_HL, n);
 	}
 		return 12;
 	case 0x35u: //DEC (HL) Decrement (HL). Flags:Z - Set if result is zero; N - Set; H - set if no borrow from bit 4
-		m->writeByte(R_HL, m->readByte(R_HL) - 1);
-		F.set(FLAG_ZERO, m->readByte(R_HL) == 0);
+		m->WriteByte(R_HL, m->ReadByte(R_HL) - 1);
+		F.set(FLAG_ZERO, m->ReadByte(R_HL) == 0);
 		F.set(FLAG_SUB, true);
-		F.set(FLAG_HC, (m->readByte(R_HL) & 0xFu) == 0xFu);
+		F.set(FLAG_HC, (m->ReadByte(R_HL) & 0xFu) == 0xFu);
 		return 12;
 	case 0x36u: //LD (HL),n Load an 8-bit immediate n into (HL)
-		m->writeByte(R_HL, m->readByte(PC++));
+		m->WriteByte(R_HL, m->ReadByte(PC++));
 		return 12;
 	case 0x37u: //SCF Set carry flag. Flags:N,H - reset; C - set.
 		F.set(FLAG_C, true);
@@ -666,7 +666,7 @@ int CPU::OP(uint8 code){
 		return 4;
 	case 0x38u: //JR C,n Jump to PC+n if C flag == 1
 		if (F[FLAG_C]){
-			PC += ((_int8)m->readByte(PC++));
+			PC += ((_int8)m->ReadByte(PC++));
 			return 12;
 		}
 		else{
@@ -677,7 +677,7 @@ int CPU::OP(uint8 code){
 		ADDHL(SP);
 		return 8;
 	case 0x3Au: //LDD A,(HL) Put value at (HL) into A, decrement HL
-		A = m->readByte(R_HL);
+		A = m->ReadByte(R_HL);
 		temp = R_HL - 1;
 		H = temp >> 8;
 		L = temp & 0xFFu;
@@ -698,7 +698,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_HC, (A & 0xFu) == 0xFu);
 		return 4;
 	case 0x3Eu: //LD A,n Load 8-bit immediate n into A
-		A = m->readByte(PC++);
+		A = m->ReadByte(PC++);
 		return 8;
 	case 0x3Fu: //CCF Complement the carry flag.Flags:N,H- reset; C-complemented
 		F.set(FLAG_C, !F[FLAG_C]);
@@ -723,7 +723,7 @@ int CPU::OP(uint8 code){
 		B = L;
 		return 4;
 	case 0x46u: //LD B,(HL) Load value at (HL) into B
-		B = m->readByte(R_HL);
+		B = m->ReadByte(R_HL);
 		return 8;
 	case 0x47u: //LD B,A Load value at A into B
 		B = A;
@@ -746,7 +746,7 @@ int CPU::OP(uint8 code){
 		C = L;
 		return 4;
 	case 0x4Eu: //LD C,(HL) Load value at (HL) into C
-		C = m->readByte(R_HL);
+		C = m->ReadByte(R_HL);
 		return 8;
 	case 0x4Fu: //LD C,A Load value at A into C
 		C = A;
@@ -769,7 +769,7 @@ int CPU::OP(uint8 code){
 		D = L;
 		return 4;
 	case 0x56u: //LD D,(HL) Load value at (HL) into D
-		D = m->readByte(R_HL);
+		D = m->ReadByte(R_HL);
 		return 8;
 	case 0x57u: //LD D,A Load value at A into D
 		D = A;
@@ -792,7 +792,7 @@ int CPU::OP(uint8 code){
 		E = L;
 		return 4;
 	case 0x5Eu: //LD E,(HL) Load value at (HL) into E
-		E = m->readByte(R_HL);
+		E = m->ReadByte(R_HL);
 		return 8;
 	case 0x5Fu: //LD E,A Load value at A into E
 		E = A;
@@ -815,7 +815,7 @@ int CPU::OP(uint8 code){
 		H = L;
 		return 4;
 	case 0x66u: //LD H,(HL) Load value at (HL) into H
-		H = m->readByte(R_HL);
+		H = m->ReadByte(R_HL);
 		return 8;
 	case 0x67u: //LD H,A Load value at A into H
 		H = A;
@@ -838,34 +838,34 @@ int CPU::OP(uint8 code){
 	case 0x6Du: //LD L,L Load value at L into L (do nothing)
 		return 4;
 	case 0x6Eu: //LD L,(HL) Load value at (HL) into L
-		L = m->readByte(R_HL);
+		L = m->ReadByte(R_HL);
 		return 8;
 	case 0x6Fu: //LD L,A Load value at A into L
 		L = A;
 		return 4;
 	case 0x70u: //LD (HL),B Load value at B into (HL)
-		m->writeByte(R_HL, B);
+		m->WriteByte(R_HL, B);
 		return 8;
 	case 0x71u: //LD (HL),C Load value at C into (HL)
-		m->writeByte(R_HL, C);
+		m->WriteByte(R_HL, C);
 		return 8;
 	case 0x72u: //LD (HL),D Load value at D into (HL)
-		m->writeByte(R_HL, D);
+		m->WriteByte(R_HL, D);
 		return 8;
 	case 0x73u: //LD (HL),E Load value at E into (HL)
-		m->writeByte(R_HL, E);
+		m->WriteByte(R_HL, E);
 		return 8;
 	case 0x74u: //LD (HL),H Load value at H into (HL)
-		m->writeByte(R_HL, H);
+		m->WriteByte(R_HL, H);
 		return 8;
 	case 0x75u: //LD (HL),L Load value at L into (HL)
-		m->writeByte(R_HL, L);
+		m->WriteByte(R_HL, L);
 		return 8;
 	case 0x76u: //HALT Power down CPU until an interrupt occurs.
-		handleHalt();
+		HandleHalt();
 		return 4;
 	case 0x77u: //LD (HL),A Load value at A into (HL)
-		m->writeByte(R_HL, A);
+		m->WriteByte(R_HL, A);
 		return 8;
 	case 0x78u: //LD A,B Load value of B into A
 		A = B;
@@ -886,7 +886,7 @@ int CPU::OP(uint8 code){
 		A = L;
 		return 4;
 	case 0x7Eu: //LD A,(HL) Load value of (HL) into A
-		A = m->readByte(R_HL);
+		A = m->ReadByte(R_HL);
 		return 8;
 	case 0x7Fu: //LD A,A Load value of A into A (do nothing)
 		return 4;
@@ -909,7 +909,7 @@ int CPU::OP(uint8 code){
 		ADD(&L);
 		return 4;
 	case 0x86u: //ADD A,(HL) Add (HL) to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp2 = m->readByte(R_HL);
+		temp2 = m->ReadByte(R_HL);
 		ADD(&temp2);
 		return 8;
 	case 0x87u: //ADD A,A Add A to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
@@ -934,7 +934,7 @@ int CPU::OP(uint8 code){
 		ADC(&L);
 		return 4;
 	case 0x8Eu: //ADC A,(HL) Add (HL) + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp2 = m->readByte(R_HL);
+		temp2 = m->ReadByte(R_HL);
 		ADC(&temp2);
 		return 8;
 	case 0x8Fu: //ADC A,A Add A + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
@@ -959,7 +959,7 @@ int CPU::OP(uint8 code){
 		SUB(&L);
 		return 4;
 	case 0x96u: //SUB (HL) Subtract (HL) from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp2 = m->readByte(R_HL);
+		temp2 = m->ReadByte(R_HL);
 		SUB(&temp2);
 		return 8;
 	case 0x97u: //SUB A Subtract A from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
@@ -984,7 +984,7 @@ int CPU::OP(uint8 code){
 		SBC(&L);
 		return 4;
 	case 0x9Eu: //SBC A Subtract (HL) plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp2 = m->readByte(R_HL);
+		temp2 = m->ReadByte(R_HL);
 		SBC(&temp2);
 		return 8;
 	case 0x9Fu: //SBC A Subtract A plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
@@ -1033,7 +1033,7 @@ int CPU::OP(uint8 code){
 		F.reset(FLAG_SUB);
 		return 4;
 	case 0xA6u: //AND (HL) Logical AND (HL) and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
-		A &= m->readByte(R_HL);
+		A &= m->ReadByte(R_HL);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
@@ -1088,7 +1088,7 @@ int CPU::OP(uint8 code){
 		F.reset(FLAG_SUB);
 		return 4;
 	case 0xAEu: //XOR (HL) Logical XOR (HL) and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
-		A ^= m->readByte(R_HL);
+		A ^= m->ReadByte(R_HL);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
@@ -1144,7 +1144,7 @@ int CPU::OP(uint8 code){
 		F.reset(FLAG_SUB);
 		return 4;
 	case 0xB6u: //OR (HL) Logical OR (HL) and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
-		A |= m->readByte(R_HL);
+		A |= m->ReadByte(R_HL);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
@@ -1199,7 +1199,7 @@ int CPU::OP(uint8 code){
 		F.set(FLAG_SUB);
 		return 4;
 	case 0xBEu: //CP (HL) Compare A and (HL). Flags: Z - set if A == (HL); N - Set; H - set if no borrow from bit 4; C - Set if A < (HL);  
-		signedTemp = A - m->readByte(R_HL);
+		signedTemp = A - m->ReadByte(R_HL);
 		F.set(FLAG_HC, (signedTemp & 0xFu) >(A & 0xFu));
 		F.set(FLAG_C, signedTemp < 0);
 		F.set(FLAG_ZERO, signedTemp == 0);
@@ -1213,22 +1213,22 @@ int CPU::OP(uint8 code){
 		return 4;
 	case 0xC0u: //RET NZ Return if Z flag == 0
 		if (!F[FLAG_ZERO]){
-			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
+			PC = (m->ReadByte(SP + 1) << 8) | m->ReadByte(SP);
 			SP += 2;
 			return 20;
 		}
 		return 8;
 	case 0xC1u: //POP BC, Pop 16-bits off of the stack into BC, increment SP twice
-		C = m->readByte(SP);
-		B = m->readByte(SP + 1);
+		C = m->ReadByte(SP);
+		B = m->ReadByte(SP + 1);
 		SP += 2;
 		return 12;
 	case 0xC2u: //JP NZ,nn Jump to address given by 16-bit immediate nn if Z flag == 0
 		if (!F[FLAG_ZERO]){
 			//postfix in C++ is undefined, PC may not increment between readByte calls postfix only is guaranteed to occur after the line
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8); 
-			nn = m->readByte(PC++);
-			nn |= m->readByte(PC++) << 8;
+			nn = m->ReadByte(PC++);
+			nn |= m->ReadByte(PC++) << 8;
 			PC = nn;
 			return 16;
 		}
@@ -1238,8 +1238,8 @@ int CPU::OP(uint8 code){
 		}
 	case 0xC3u: //JP nn Jump to address given by 16-bit immediate nn. LS byte first
 		//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
-		nn = m->readByte(PC++);
-		nn |= m->readByte(PC++) << 8;
+		nn = m->ReadByte(PC++);
+		nn |= m->ReadByte(PC++) << 8;
 		if (nn == 0xDEF8){
 			//debugging
 			PC = nn;
@@ -1248,12 +1248,12 @@ int CPU::OP(uint8 code){
 		return 16;
 	case 0xC4u: //CALL NZ,nn Call nn if Z flag == 0
 		if (!F[FLAG_ZERO]){
-			temp = m->readByte(PC++);
-			temp |= (m->readByte(PC++) << 8);
+			temp = m->ReadByte(PC++);
+			temp |= (m->ReadByte(PC++) << 8);
 			SP -= 1;
-			m->writeByte(SP, PC >> 8);
+			m->WriteByte(SP, PC >> 8);
 			SP -= 1;
-			m->writeByte(SP, PC & 0xFFu);
+			m->WriteByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
 			return 24;
 		}
@@ -1263,12 +1263,12 @@ int CPU::OP(uint8 code){
 		}
 	case 0xC5u: //PUSH BC Push BC onto the stack, decrement SP twice
 		SP -= 1;
-		m->writeByte(SP, B);
+		m->WriteByte(SP, B);
 		SP -= 1;
-		m->writeByte(SP, C);
+		m->WriteByte(SP, C);
 		return 16;
 	case 0xC6u: //ADD A,n Add 8-bit immediate to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp = A + m->readByte(PC++);
+		temp = A + m->ReadByte(PC++);
 		F.set(FLAG_HC, (temp & 0xFu) < (A & 0xFu));
 		F.set(FLAG_C, temp > 0xFFu);
 		A = temp & 0xFFu;
@@ -1277,27 +1277,27 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0xC7u: //RST 00H Push PC onto the stack, jump to 0000
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0;
 		return 16;
 	case 0xC8u: //RET Z Return if Z flag == 1
 		if (F[FLAG_ZERO]){
-			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
+			PC = (m->ReadByte(SP + 1) << 8) | m->ReadByte(SP);
 			SP += 2;
 			return 20;
 		}
 		return 8;
 	case 0xC9u: //RET Pop two bytes from stack and jump to the address given by them
-		PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
+		PC = (m->ReadByte(SP + 1) << 8) | m->ReadByte(SP);
 		SP += 2;
 		return 16;
 	case 0xCAu: //JP Z,nn Jump to address given by 16-bit immediate nn if Z flag == 1
 		if (F[FLAG_ZERO]){
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
-			nn = m->readByte(PC++);
-			nn |= m->readByte(PC++) << 8;
+			nn = m->ReadByte(PC++);
+			nn |= m->ReadByte(PC++) << 8;
 			PC = nn;
 			return 16;
 		}
@@ -1306,7 +1306,7 @@ int CPU::OP(uint8 code){
 			return 12;
 		}
 	case 0xCBu: //CB prefix, call CB(OPCODE) where OPCODE is the next 8-bits after CB
-		temp2 = m->readByte(PC++);
+		temp2 = m->ReadByte(PC++);
 		CB(temp2);
 
 		//All CB operations take 8 cycles, except for those ending in 6 and E, which take 16 cycles. CB itself takes 4 cycles.
@@ -1318,12 +1318,12 @@ int CPU::OP(uint8 code){
 		}
 	case 0xCCu: //CALL Z,nn Call nn if Z flag == 1
 		if (F[FLAG_ZERO]){
-			temp = m->readByte(PC++);
-			temp |= (m->readByte(PC++) << 8);
+			temp = m->ReadByte(PC++);
+			temp |= (m->ReadByte(PC++) << 8);
 			SP -= 1;
-			m->writeByte(SP, PC >> 8);
+			m->WriteByte(SP, PC >> 8);
 			SP -= 1;
-			m->writeByte(SP, PC & 0xFFu);
+			m->WriteByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
 			return 24;
 		}
@@ -1332,42 +1332,42 @@ int CPU::OP(uint8 code){
 			return 12;
 		}
 	case 0xCDu: //CALL nn Push address of next instruction onto the stack and then jump to nn where nn is a 16-bit immediate (LS byte first)
-		temp = m->readByte(PC++);
-		temp |= (m->readByte(PC++) << 8);
+		temp = m->ReadByte(PC++);
+		temp |= (m->ReadByte(PC++) << 8);
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = temp & 0xFFFFu;
 		return 24;
 	case 0xCEu: //ADC A,n Add 8-bit immediate n + Carry flag to A. Flags: Z - set if result is zero; N - Reset; H - Set if carry from bit 3; C - set if carry from bit 7
-		temp2 = m->readByte(PC++);
+		temp2 = m->ReadByte(PC++);
 		ADC(&temp2);
 		return 8;
 	case 0xCFu: //RST 08H Push PC onto the stack, jump to 0x0008u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x8u;
 		return 16;
 	case 0xD0u: //RET NC return if C flag == 0
 		if (!F[FLAG_C]){
-			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
+			PC = (m->ReadByte(SP + 1) << 8) | m->ReadByte(SP);
 			SP += 2;
 			return 20;
 		}
 		return 8;
 	case 0xD1u: //POP DE, Pop 16-bits off of the stack into DE, increment SP twice
-		E = m->readByte(SP);
-		D = m->readByte(SP + 1);
+		E = m->ReadByte(SP);
+		D = m->ReadByte(SP + 1);
 		SP += 2;
 		return 12;
 	case 0xD2u: //JP NC,nn Jump to address given by 16-bit immediate nn if C flag == 0
 		if (!F[FLAG_C]){
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
-			nn = m->readByte(PC++);
-			nn |= m->readByte(PC++) << 8;
+			nn = m->ReadByte(PC++);
+			nn |= m->ReadByte(PC++) << 8;
 			PC = nn;
 			return 16;
 		}
@@ -1380,12 +1380,12 @@ int CPU::OP(uint8 code){
 		return -1;
 	case 0xD4u: //CALL NC,nn Call nn if C flag == 0
 		if (!F[FLAG_C]){
-			temp = m->readByte(PC++);
-			temp |= (m->readByte(PC++) << 8);
+			temp = m->ReadByte(PC++);
+			temp |= (m->ReadByte(PC++) << 8);
 			SP -= 1;
-			m->writeByte(SP, PC >> 8);
+			m->WriteByte(SP, PC >> 8);
 			SP -= 1;
-			m->writeByte(SP, PC & 0xFFu);
+			m->WriteByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
 			return 24;
 		}
@@ -1395,13 +1395,13 @@ int CPU::OP(uint8 code){
 		}
 	case 0xD5u: //PUSH DE Push DE onto the stack, decrement SP twice
 		SP -= 1;
-		m->writeByte(SP, D);
+		m->WriteByte(SP, D);
 		SP -= 1;
-		m->writeByte(SP, E);
+		m->WriteByte(SP, E);
 		return 16;
 	case 0xD6u: //SUB n Subtract 8-bit immediate n from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
 	{
-		uint8 n = m->readByte(PC++);
+		uint8 n = m->ReadByte(PC++);
 		F.set(FLAG_HC, (A & 0xFu) < (n & 0xFu));
 		F.set(FLAG_C, A < n);
 		A = (A - n) & 0xFFu;
@@ -1411,28 +1411,28 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0xD7u: //RST 10H Push PC onto the stack, jump to 0x0010u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x10u;
 		return 16;
 	case 0xD8u: //RET C Return if C flag == 1
 		if (F[FLAG_C]){
-			PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
+			PC = (m->ReadByte(SP + 1) << 8) | m->ReadByte(SP);
 			SP += 2;
 			return 20;
 		}
 		return 8;
 	case 0xD9u: //RETI Pop two bytes off the stack and jump to that address, enable interrupts
-		PC = (m->readByte(SP + 1) << 8) | m->readByte(SP);
+		PC = (m->ReadByte(SP + 1) << 8) | m->ReadByte(SP);
 		SP += 2;
 		interruptEnabled = true;
 		return 16;
 	case 0xDAu: //JP C,nn Jump to address given by 16-bit immediate if C flag == 1
 		if (F[FLAG_C]){
 			//PC = m->readByte(PC++) | (m->readByte(PC++) << 8);
-			nn = m->readByte(PC++);
-			nn |= m->readByte(PC++) << 8;
+			nn = m->ReadByte(PC++);
+			nn |= m->ReadByte(PC++) << 8;
 			PC = nn;
 			return 16;
 		}
@@ -1445,12 +1445,12 @@ int CPU::OP(uint8 code){
 		return -1;
 	case 0xDCu: //CALL C,nn Call nn if C flag == 1
 		if (F[FLAG_C]){
-			temp = m->readByte(PC++);
-			temp |= (m->readByte(PC++) << 8);
+			temp = m->ReadByte(PC++);
+			temp |= (m->ReadByte(PC++) << 8);
 			SP -= 1;
-			m->writeByte(SP, PC >> 8);
+			m->WriteByte(SP, PC >> 8);
 			SP -= 1;
-			m->writeByte(SP, PC & 0xFFu);
+			m->WriteByte(SP, PC & 0xFFu);
 			PC = temp & 0xFFFFu;
 			return 24;
 		}
@@ -1462,26 +1462,26 @@ int CPU::OP(uint8 code){
 		printf("Illegal OP: 0xDDu at PC: %u", PC);
 		return -1;
 	case 0xDEu: //SBC n Subtract 8-bit immediate n plus carry flag from A. Flags: Z - set if result is zero; N - Set; H - Set if no borrow from bit 4; C- Set if no borrow.
-		temp2 = m->readByte(PC++);
+		temp2 = m->ReadByte(PC++);
 		SBC(&temp2);
 		return 8;
 	case 0xDFu: //RST 18H Push PC onto the stack, jump to 0x0018u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x18u;
 		return 16;
 	case 0xE0: //LDH n,A Load A into address given by $FF00 + n where n is an 8-bit immediate
-		m->writeByte(0xFF00u + m->readByte(PC++), A);
+		m->WriteByte(0xFF00u + m->ReadByte(PC++), A);
 		return 12;
 	case 0xE1u: //POP HL, Pop 16-bits off of the stack into HL, increment SP twice
-		L = m->readByte(SP);
-		H = m->readByte(SP + 1);
+		L = m->ReadByte(SP);
+		H = m->ReadByte(SP + 1);
 		SP += 2;
 		return 12;
 	case 0xE2u: //LD (C),A Load A into address $FF00 + C
-		m->writeByte(0xFF00u + C, A);
+		m->WriteByte(0xFF00u + C, A);
 		return 8;
 	case 0xE3u: //Illegal opcode, halt execution (0xE3u)
 		printf("Illegal OP: 0xE3u at PC: %u", PC);
@@ -1491,12 +1491,12 @@ int CPU::OP(uint8 code){
 		return -1;
 	case 0xE5u: //PUSH HL Push HL onto the stack, decrement SP twice
 		SP -= 1;
-		m->writeByte(SP, H);
+		m->WriteByte(SP, H);
 		SP -= 1;
-		m->writeByte(SP, L);
+		m->WriteByte(SP, L);
 		return 16;
 	case 0xE6u: //AND n Logical AND 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C - Reset; H - Set.
-		A &= m->readByte(PC++);
+		A &= m->ReadByte(PC++);
 		F.set(FLAG_ZERO, A == 0);
 		F.set(FLAG_HC);
 		F.reset(FLAG_C);
@@ -1504,14 +1504,14 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0xE7u: //RST 20H Push PC onto the stack, jump to 0x0020u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x20u;
 		return 16;
 	case 0xE8u: //ADD SP,n Add 8-bit immediate to SP.Flags:Z - reset; N - reset; H,C - set or reset according to operation
 	{
-		_int8 n = (_int8)m->readByte(PC++);
+		_int8 n = (_int8)m->ReadByte(PC++);
 		uint16 val = (SP + n) & 0xFFFF;
 		F.reset();
 		unsigned int test = SP + n;
@@ -1525,9 +1525,9 @@ int CPU::OP(uint8 code){
 		return 4;
 	case 0xEAu: //LD (nn),A Load value at A into 16-bit immediate address (nn)
 		//m->writeByte(m->readByte(m->readByte(PC) | (m->readByte(PC+1) << 8)), A);
-		nn = m->readByte(PC++);
-		nn |= m->readByte(PC++) << 8;
-		m->writeByte(nn, A);
+		nn = m->ReadByte(PC++);
+		nn |= m->ReadByte(PC++) << 8;
+		m->WriteByte(nn, A);
 		return 16;
 	case 0xEBu: //Illegal opcode, halt execution (0xEBu)
 		printf("Illegal OP: 0xEBu at PC: %u", PC);
@@ -1539,7 +1539,7 @@ int CPU::OP(uint8 code){
 		printf("Illegal OP: 0xEDu at PC: %u", PC);
 		return -1;
 	case 0xEEu: //XOR n Logical XOR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
-		A ^= m->readByte(PC++);
+		A ^= m->ReadByte(PC++);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
@@ -1547,25 +1547,25 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0xEFu: //RST 28H Push PC onto the stack, jump to 0x0028u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x28u;
 		return 16;
 	case 0xF0u: //LDH A,(n) Load value at $FF00 + n into A where n is an 8-bit immediate
-		A = m->readByte(0xFF00u + m->readByte(PC++));
+		A = m->ReadByte(0xFF00u + m->ReadByte(PC++));
 		return 12;
 	case 0xF1u: //POP AF, Pop 16-bits off of the stack into AF, increment SP twice
-		temp = m->readByte(SP);
+		temp = m->ReadByte(SP);
 		F.set(FLAG_ZERO, temp > 0x7Fu);
 		F.set(FLAG_SUB, (temp & 0x40u) == 0x40u);
 		F.set(FLAG_HC, (temp & 0x20u) == 0x20u);
 		F.set(FLAG_C, (temp & 0x10u) == 0x10u);
-		A = m->readByte(SP + 1);
+		A = m->ReadByte(SP + 1);
 		SP += 2;
 		return 12;
 	case 0xF2u: //LD A,(C) Load value at address $FF00 + C into A
-		A = m->readByte(0xFF00u + C);
+		A = m->ReadByte(0xFF00u + C);
 		return 8;
 	case 0xF3u: //DI Disable interrupts after this instruction is executed
 		interruptEnabled = false;
@@ -1575,12 +1575,12 @@ int CPU::OP(uint8 code){
 		return -1;
 	case 0xF5u: //PUSH AF Push AF onto the stack, decrement SP twice
 		SP -= 1;
-		m->writeByte(SP, A);
+		m->WriteByte(SP, A);
 		SP -= 1;
-		m->writeByte(SP, ((F[FLAG_ZERO]) ? 0x80u : 0) | ((F[FLAG_SUB]) ? 0x40u : 0) | ((F[FLAG_HC]) ? 0x20u : 0) | ((F[FLAG_C]) ? 0x10u : 0));
+		m->WriteByte(SP, ((F[FLAG_ZERO]) ? 0x80u : 0) | ((F[FLAG_SUB]) ? 0x40u : 0) | ((F[FLAG_HC]) ? 0x20u : 0) | ((F[FLAG_C]) ? 0x10u : 0));
 		return 16;
 	case 0xF6u: //OR n Logical OR 8-bit immediate n and A, result in A. Flags: Z - set if result is zero; N,C,H - Reset.
-		A |= m->readByte(PC++);
+		A |= m->ReadByte(PC++);
 		F.set(FLAG_ZERO, A == 0);
 		F.reset(FLAG_HC);
 		F.reset(FLAG_C);
@@ -1588,14 +1588,14 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0xF7u: //RST 30H Push PC onto the stack, jump to 0x0030u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x30u;
 		return 16;
 	case 0xF8u: //LDHL SP,n Load value SP + n into HL where n is an 8-bit immediate. flags: Z,N - reset; H,C set according to operation
 	{
-		_int8 n = (_int8)m->readByte(PC++);
+		_int8 n = (_int8)m->ReadByte(PC++);
 		nn = (n + SP) & 0xFFFFu;
 		L = nn & 0xFFu;
 		H = (nn >> 8) & 0xFFu;
@@ -1610,9 +1610,9 @@ int CPU::OP(uint8 code){
 		SP = R_HL;
 		return 8;
 	case 0xFAu: //LD A,(nn) Load value of 16-bit immediate address (nn) into A
-		nn = m->readByte(PC++);
-		nn |= m->readByte(PC++) << 8;
-		A = m->readByte(nn);
+		nn = m->ReadByte(PC++);
+		nn |= m->ReadByte(PC++) << 8;
+		A = m->ReadByte(nn);
 		return 16;
 	case 0xFBu: //EI Enable interrupts after this instruction is executed
 		interruptEnabled = true;
@@ -1624,7 +1624,7 @@ int CPU::OP(uint8 code){
 		printf("Illegal OP: 0xFDu at PC: %u", PC);
 		return -1;
 	case 0xFEu: //CP n Compare A and 8-bit immediate n. Flags: Z - set if A == n; N - Set; H - set if no borrow from bit 4; C - Set if A < n; 
-		signedTemp = A - m->readByte(PC++);
+		signedTemp = A - m->ReadByte(PC++);
 		F.set(FLAG_HC, (signedTemp & 0xFu) > (A & 0xFu));
 		F.set(FLAG_C, signedTemp < 0);
 		F.set(FLAG_ZERO, signedTemp == 0);
@@ -1632,9 +1632,9 @@ int CPU::OP(uint8 code){
 		return 8;
 	case 0xFFu: //RST 38H, Push PC onto the stack, jump to 0x0038u
 		SP -= 1;
-		m->writeByte(SP, PC >> 8);
+		m->WriteByte(SP, PC >> 8);
 		SP -= 1;
-		m->writeByte(SP, PC & 0xFFu);
+		m->WriteByte(SP, PC & 0xFFu);
 		PC = 0x38u;
 		return 16;
 	default:
@@ -1663,7 +1663,7 @@ void CPU::CB(uint8 code){
 		RLC(&L);
 		break;
 	case 0x6u:	//RLC (HL)
-		m->writeByte(R_HL, RLC(m->readByte(R_HL)));
+		m->WriteByte(R_HL, RLC(m->ReadByte(R_HL)));
 		break;
 	case 0x7u:	//RLC A
 		RLC(&A);
@@ -1687,7 +1687,7 @@ void CPU::CB(uint8 code){
 		RRC(&L);
 		break;
 	case 0xEu:	//RRC (HL)
-		m->writeByte(R_HL, RRC(m->readByte(R_HL)));
+		m->WriteByte(R_HL, RRC(m->ReadByte(R_HL)));
 		break;
 	case 0xFu:	//RRC A
 		RRC(&A);
@@ -1711,7 +1711,7 @@ void CPU::CB(uint8 code){
 		RL(&L);
 		break;
 	case 0x16u:	//RL (HL)
-		m->writeByte(R_HL, RL(m->readByte(R_HL)));
+		m->WriteByte(R_HL, RL(m->ReadByte(R_HL)));
 		break;
 	case 0x17u:	//RL A
 		RL(&A);
@@ -1735,7 +1735,7 @@ void CPU::CB(uint8 code){
 		RR(&L);
 		break;
 	case 0x1Eu:	//RR (HL)
-		m->writeByte(R_HL, RR(m->readByte(R_HL)));
+		m->WriteByte(R_HL, RR(m->ReadByte(R_HL)));
 		break;
 	case 0x1Fu:	//RR A
 		RR(&A);
@@ -1759,7 +1759,7 @@ void CPU::CB(uint8 code){
 		SLA(&L);
 		break;
 	case 0x26u:	//SLA (HL)
-		m->writeByte(R_HL, SLA(m->readByte(R_HL)));
+		m->WriteByte(R_HL, SLA(m->ReadByte(R_HL)));
 		break;
 	case 0x27u:	//SLA A
 		SLA(&A);
@@ -1783,7 +1783,7 @@ void CPU::CB(uint8 code){
 		SRA(&L);
 		break;
 	case 0x2Eu:	//SRA (HL)
-		m->writeByte(R_HL, SRA(m->readByte(R_HL)));
+		m->WriteByte(R_HL, SRA(m->ReadByte(R_HL)));
 		break;
 	case 0x2Fu:	//SRA A
 		SRA(&A);
@@ -1807,7 +1807,7 @@ void CPU::CB(uint8 code){
 		SWAP(&L);
 		break;
 	case 0x36u:	//SWAP (HL)
-		m->writeByte(R_HL, SWAP(m->readByte(R_HL)));
+		m->WriteByte(R_HL, SWAP(m->ReadByte(R_HL)));
 		break;
 	case 0x37u:	//SWAP A
 		SWAP(&A);
@@ -1831,7 +1831,7 @@ void CPU::CB(uint8 code){
 		SRL(&L);
 		break;
 	case 0x3Eu:	//SRL (HL)
-		m->writeByte(R_HL, SRL(m->readByte(R_HL)));
+		m->WriteByte(R_HL, SRL(m->ReadByte(R_HL)));
 		break;
 	case 0x3Fu:	//SRL A
 		SRL(&A);
@@ -1855,7 +1855,7 @@ void CPU::CB(uint8 code){
 		BIT(0, &L);
 		break;
 	case 0x46u:	//BIT 0,(HL)
-		BIT(0, m->readByte(R_HL));
+		BIT(0, m->ReadByte(R_HL));
 		break;
 	case 0x47u:	//BIT 0,A
 		BIT(0, &A);
@@ -1879,7 +1879,7 @@ void CPU::CB(uint8 code){
 		BIT(1, &L);
 		break;
 	case 0x4Eu:	//BIT 1,(HL)
-		BIT(1, m->readByte(R_HL));
+		BIT(1, m->ReadByte(R_HL));
 		break;
 	case 0x4Fu:	//BIT 1,A
 		BIT(1, &A);
@@ -1903,7 +1903,7 @@ void CPU::CB(uint8 code){
 		BIT(2, &L);
 		break;
 	case 0x56u:	//BIT 2,(HL)
-		BIT(2, m->readByte(R_HL));
+		BIT(2, m->ReadByte(R_HL));
 		break;
 	case 0x57u:	//BIT 2,A
 		BIT(2, &A);
@@ -1927,7 +1927,7 @@ void CPU::CB(uint8 code){
 		BIT(3, &L);
 		break;
 	case 0x5Eu:	//BIT 3,(HL)
-		BIT(3, m->readByte(R_HL));
+		BIT(3, m->ReadByte(R_HL));
 		break;
 	case 0x5Fu:	//BIT 3,A
 		BIT(3, &A);
@@ -1951,7 +1951,7 @@ void CPU::CB(uint8 code){
 		BIT(4, &L);
 		break;
 	case 0x66u:	//BIT 4,(HL)
-		BIT(4, m->readByte(R_HL));
+		BIT(4, m->ReadByte(R_HL));
 		break;
 	case 0x67u:	//BIT 4,A
 		BIT(4, &A);
@@ -1975,7 +1975,7 @@ void CPU::CB(uint8 code){
 		BIT(5, &L);
 		break;
 	case 0x6Eu:	//BIT 5,(HL)
-		BIT(5, m->readByte(R_HL));
+		BIT(5, m->ReadByte(R_HL));
 		break;
 	case 0x6Fu:	//BIT 5,A
 		BIT(5, &A);
@@ -1999,7 +1999,7 @@ void CPU::CB(uint8 code){
 		BIT(6, &L);
 		break;
 	case 0x76u:	//BIT 6,(HL)
-		BIT(6, m->readByte(R_HL));
+		BIT(6, m->ReadByte(R_HL));
 		break;
 	case 0x77u:	//BIT 6,A
 		BIT(6, &A);
@@ -2023,7 +2023,7 @@ void CPU::CB(uint8 code){
 		BIT(7, &L);
 		break;
 	case 0x7Eu:	//BIT 7,(HL)
-		BIT(7, m->readByte(R_HL));
+		BIT(7, m->ReadByte(R_HL));
 		break;
 	case 0x7Fu:	//BIT 7,A
 		BIT(7, &A);
@@ -2047,7 +2047,7 @@ void CPU::CB(uint8 code){
 		RES(0, &L);
 		break;
 	case 0x86u:	//RES 0,(HL)
-		m->writeByte(R_HL, RES(0, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(0, m->ReadByte(R_HL)));
 		break;
 	case 0x87u:	//RES 0,A
 		RES(0, &A);
@@ -2071,7 +2071,7 @@ void CPU::CB(uint8 code){
 		RES(1, &L);
 		break;
 	case 0x8Eu:	//RES 1,(HL)
-		m->writeByte(R_HL, RES(1, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(1, m->ReadByte(R_HL)));
 		break;
 	case 0x8Fu:	//RES 1,A
 		RES(1, &A);
@@ -2095,7 +2095,7 @@ void CPU::CB(uint8 code){
 		RES(2, &L);
 		break;
 	case 0x96u:	//RES 2,(HL)
-		m->writeByte(R_HL, RES(2, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(2, m->ReadByte(R_HL)));
 		break;
 	case 0x97u:	//RES 2,A
 		RES(2, &A);
@@ -2119,7 +2119,7 @@ void CPU::CB(uint8 code){
 		RES(3, &L);
 		break;
 	case 0x9Eu:	//RES 3,(HL)
-		m->writeByte(R_HL, RES(3, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(3, m->ReadByte(R_HL)));
 		break;
 	case 0x9Fu:	//RES 3,A
 		RES(3, &A);
@@ -2143,7 +2143,7 @@ void CPU::CB(uint8 code){
 		RES(4, &L);
 		break;
 	case 0xA6u:	//RES 4,(HL)
-		m->writeByte(R_HL, RES(4, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(4, m->ReadByte(R_HL)));
 		break;
 	case 0xA7u:	//RES 4,A
 		RES(4, &A);
@@ -2167,7 +2167,7 @@ void CPU::CB(uint8 code){
 		RES(5, &L);
 		break;
 	case 0xAEu:	//RES 5,(HL)
-		m->writeByte(R_HL, RES(5, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(5, m->ReadByte(R_HL)));
 		break;
 	case 0xAFu:	//RES 5,A
 		RES(5, &A);
@@ -2191,7 +2191,7 @@ void CPU::CB(uint8 code){
 		RES(6, &L);
 		break;
 	case 0xB6u:	//RES 6,(HL)
-		m->writeByte(R_HL, RES(6, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(6, m->ReadByte(R_HL)));
 		break;
 	case 0xB7u:	//RES 6,A
 		RES(6, &A);
@@ -2215,7 +2215,7 @@ void CPU::CB(uint8 code){
 		RES(7, &L);
 		break;
 	case 0xBEu:	//RES 7,(HL)
-		m->writeByte(R_HL, RES(7, m->readByte(R_HL)));
+		m->WriteByte(R_HL, RES(7, m->ReadByte(R_HL)));
 		break;
 	case 0xBFu:	//RES 7,A
 		RES(7, &A);
@@ -2239,7 +2239,7 @@ void CPU::CB(uint8 code){
 		SET(0, &L);
 		break;
 	case 0xC6u:	//SET 0,(HL)
-		m->writeByte(R_HL, SET(0, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(0, m->ReadByte(R_HL)));
 		break;
 	case 0xC7u:	//SET 0,A
 		SET(0, &A);
@@ -2263,7 +2263,7 @@ void CPU::CB(uint8 code){
 		SET(1, &L);
 		break;
 	case 0xCEu:	//SET 1,(HL)
-		m->writeByte(R_HL, SET(1, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(1, m->ReadByte(R_HL)));
 		break;
 	case 0xCFu:	//SET 1,A
 		SET(1, &A);
@@ -2287,7 +2287,7 @@ void CPU::CB(uint8 code){
 		SET(2, &L);
 		break;
 	case 0xD6u:	//SET 2,(HL)
-		m->writeByte(R_HL, SET(2, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(2, m->ReadByte(R_HL)));
 		break;
 	case 0xD7u:	//SET 2,A
 		SET(2, &A);
@@ -2311,7 +2311,7 @@ void CPU::CB(uint8 code){
 		SET(3, &L);
 		break;
 	case 0xDEu:	//SET 3,(HL)
-		m->writeByte(R_HL, SET(3, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(3, m->ReadByte(R_HL)));
 		break;
 	case 0xDFu:	//SET 3,A
 		SET(3, &A);
@@ -2335,7 +2335,7 @@ void CPU::CB(uint8 code){
 		SET(4, &L);
 		break;
 	case 0xE6u:	//SET 4,(HL)
-		m->writeByte(R_HL, SET(4, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(4, m->ReadByte(R_HL)));
 		break;
 	case 0xE7u:	//SET 4,A
 		SET(4, &A);
@@ -2359,7 +2359,7 @@ void CPU::CB(uint8 code){
 		SET(5, &L);
 		break;
 	case 0xEEu:	//SET 5,(HL)
-		m->writeByte(R_HL, SET(5, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(5, m->ReadByte(R_HL)));
 		break;
 	case 0xEFu:	//SET 5,A
 		SET(5, &A);
@@ -2383,7 +2383,7 @@ void CPU::CB(uint8 code){
 		SET(6, &L);
 		break;
 	case 0xF6u:	//SET 6,(HL)
-		m->writeByte(R_HL, SET(6, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(6, m->ReadByte(R_HL)));
 		break;
 	case 0xF7u:	//SET 6,A
 		SET(6, &A);
@@ -2407,7 +2407,7 @@ void CPU::CB(uint8 code){
 		SET(7, &L);
 		break;
 	case 0xFEu:	//SET 7,(HL)
-		m->writeByte(R_HL, SET(7, m->readByte(R_HL)));
+		m->WriteByte(R_HL, SET(7, m->ReadByte(R_HL)));
 		break;
 	case 0xFFu:	//SET 7,A
 		SET(7, &A);
@@ -2415,18 +2415,18 @@ void CPU::CB(uint8 code){
 	}
 }
 
-void CPU::handleStop(){
+void CPU::HandleStop(){
 
 }
 
-void CPU::handleHalt(){
+void CPU::HandleHalt(){
 	bool interrupted = false;
 	while (!interrupted){
 		const int cyclesPerUpdate = 70224;
 		int cycles = 0;
 
 		while (cycles < cyclesPerUpdate){
-			updateTimer(4);
+			UpdateTimer(4);
 			g->Step(4);
 			cycles += 4;
 			interrupted = IF > 0;
@@ -2437,17 +2437,17 @@ void CPU::handleHalt(){
 	}
 }
 
-void CPU::requestInterrupt(interrupts i){
-	m->writeByte(0xFF0Fu, IF | (0x1u << i));
+void CPU::RequestInterrupt(interrupts i){
+	m->WriteByte(0xFF0Fu, IF | (0x1u << i));
 }
 
-bool CPU::handleInterrupts(){
+bool CPU::HandleInterrupts(){
 	if (interruptEnabled){
 		if (IF > 0){	//if there are any flags set in IF
 			for (int i = 0; i < 5; i++){	//go from bit 0 to bit 5, in order of priority
 				if (((IF & (1 << i)) > 0) &&
 					((IE & (1 << i)) > 0)){	//if the specific interrupt flag is set and it is enabled
-					serviceInterrupt(i);
+					ServiceInterrupt(i);
 					return true;
 				}
 			}
@@ -2456,16 +2456,16 @@ bool CPU::handleInterrupts(){
 	return false;
 }
 
-void CPU::serviceInterrupt(int bit){
+void CPU::ServiceInterrupt(int bit){
 	interruptEnabled = false;
-	m->writeByte(0xFF0fu, IF & ~(1 << bit));	//reset the interrupt specific flag in IF
+	m->WriteByte(0xFF0fu, IF & ~(1 << bit));	//reset the interrupt specific flag in IF
 	g->Step(20);
-	updateTimer(20);
+	UpdateTimer(20);
 	//push PC onto stack
 	SP -= 1;
-	m->writeByte(SP, PC >> 8);
+	m->WriteByte(SP, PC >> 8);
 	SP -= 1;
-	m->writeByte(SP, PC & 0xFFu);
+	m->WriteByte(SP, PC & 0xFFu);
 
 	switch (bit){
 	case 0:
@@ -2486,10 +2486,10 @@ void CPU::serviceInterrupt(int bit){
 	}
 }
 
-int CPU::update(){
-	int cycles = OP(m->readInstruction(&PC));
+int CPU::Update(){
+	int cycles = OP(m->ReadInstruction(&PC));
 	if (cycles == -1){
-		printf("Error: %4X %X", PC - 1, m->readByte(PC - 1));
+		printf("Error: %4X %X", PC - 1, m->ReadByte(PC - 1));
 	}
 	return cycles;
 }

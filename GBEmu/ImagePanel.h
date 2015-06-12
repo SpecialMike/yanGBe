@@ -3,23 +3,25 @@
 
 class ImagePanel : public wxPanel
 {
-	wxImage image;
 
 public:
-	unsigned char* data;
 	ImagePanel(wxFrame* parent);
 	~ImagePanel();
 
-	void setData(unsigned char* d);
-
-	void paintEvent(wxPaintEvent& event);
-	void paintNow();
-	void render(wxDC& dc);
 	void OnSize(wxSizeEvent& event);
-private:
-	int w, h;
+	void PaintEvent(wxPaintEvent& event);
+	void PaintNow();
+	void Render(wxDC& dc);
+	void SetData(unsigned char* d);
+
+	unsigned char* data;
+	wxImage image;
 
 protected:
 	DECLARE_EVENT_TABLE()
+
+private:
+	int w, h;
+
 };
 
