@@ -45,6 +45,7 @@ public:
 	MainFrame* frame;
 	GB* g;
 	ImagePanel* panel;
+	wxStopWatch* watch;
 
 protected:
 	DECLARE_EVENT_TABLE()

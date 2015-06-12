@@ -36,8 +36,8 @@ void ImagePanel::PaintNow(){
 }
 
 void ImagePanel::Render(wxDC& dc){
-	wxBitmap resized = wxBitmap(image.Scale(w, h));
-	dc.DrawBitmap(resized, 0, 0, false);
+	dc.SetUserScale((double)w/160, (double)h/144);
+	dc.DrawBitmap(image, 0, 0, false);
 }
 
 void ImagePanel::OnSize(wxSizeEvent& event){

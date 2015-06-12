@@ -224,3 +224,4 @@ GBEmu/output.txt
 packages/*
 *.sav
 *.dat
+*.smproj

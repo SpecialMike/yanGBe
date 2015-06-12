@@ -35,8 +35,11 @@ bool MainApp::OnInit(){
 	panel->SetFocus();
 
 	wxTimer* timer = new wxTimer(this, wxID_EXECUTE);
-	timer->Start(8);
-	lastUpdate = GetTickCount64();
+	timer->Start(16);
+
+	watch = new wxStopWatch();
+	
+	lastUpdate = 0;
 	return true;
 }
 
@@ -65,6 +68,10 @@ void MainApp::KeyDown(wxKeyEvent &evt){
 }
 
 void MainApp::Update(wxTimerEvent& event){
+	unsigned long long thisUpdate = watch->Time();
+
+	cout << "Update start " << thisUpdate - lastUpdate << "ms" << endl;
+	lastUpdate = thisUpdate;
 	if (frame->stateChangeRequested)
 		return;
 	if (g == nullptr)
@@ -73,10 +80,7 @@ void MainApp::Update(wxTimerEvent& event){
 	panel->SetData(&g->g->data[0][0][0]);
 	panel->PaintNow();
 
-	unsigned long long thisUpdate = GetTickCount64();
-
-	cout << "Update took " << thisUpdate - lastUpdate << "ms" << endl;
-	lastUpdate = thisUpdate;
+	cout << "\tUpdate took " << watch->Time() - thisUpdate << "ms" << endl;
 }
 
 int main(int argc, char* argv[]){
