@@ -32,6 +32,7 @@
 
 class MainFrame;
 class ImagePanel;
+class OptionFrame;
 
 class MainApp : public wxApp{
 

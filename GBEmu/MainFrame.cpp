@@ -1,17 +1,21 @@
 #include "stdafx.h"
 #include "MainFrame.h"
 #include "GB.h"
+#include "OptionFrame.h"
 
 BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 	EVT_MENU(wxID_OPEN, MainFrame::OnOpen)
 	EVT_MENU(wxID_EXIT, MainFrame::OnExit)
 	EVT_MENU(1, MainFrame::LoadState)
 	EVT_MENU(wxID_SAVE, MainFrame::SaveState)
+	EVT_MENU(2, MainFrame::ShowOptions)
 END_EVENT_TABLE()
 
 MainFrame::MainFrame(const wxChar* title, wxPoint pos, wxSize size, GB*& gb)
 	: wxFrame((wxFrame*)nullptr, -1, title, pos, size)
 {
+	options = new OptionFrame(wxSize(200,200));
+
 	menuBar = new wxMenuBar();
 
 	fileMenu = new wxMenu();
@@ -20,6 +24,10 @@ MainFrame::MainFrame(const wxChar* title, wxPoint pos, wxSize size, GB*& gb)
 	fileMenu->Append(wxID_SAVE, _T("&Save State"));
 	fileMenu->Append(1, _T("&Load State"));
 	menuBar->Append(fileMenu, _T("File"));
+	
+	toolMenu = new wxMenu();
+	toolMenu->Append(2, _T("O&ptions"));
+	menuBar->Append(toolMenu, _T("Tools"));
 
 	stateChangeRequested = false;
 	SetMenuBar(menuBar);
@@ -76,4 +84,8 @@ void MainFrame::SaveState(wxCommandEvent&){
 	}
 	SaveDialog->Close();
 	stateChangeRequested = false;
+}
+
+void MainFrame::ShowOptions(wxCommandEvent&){
+	options->Show();
 }
