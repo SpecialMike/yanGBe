@@ -186,7 +186,7 @@ void GPU::DrawBGLine(){
 		if (drawWindow && i >= WXVal-7)
 			xPos = i - (WXVal-7);
 
-		if (i%8 == 0){	//only read from the MMU when needed.
+//		if ( (i + SCXVal) % 8 == 0){	//only read from the MMU when needed.
 			uint16 tileCol = xPos / 8;
 			uint16 tileAddress = tileMapAddress + tileRow + tileCol;
 			_int8 tileNum;
@@ -203,7 +203,7 @@ void GPU::DrawBGLine(){
 			}
 			else{
 				tileLocation += ((tileNum + 128) * 16);
-			}
+//		}
 
 			uint8 line = yPos % 8;
 			line *= 2;
@@ -227,14 +227,14 @@ void GPU::DrawBGLine(){
 			data[LYVal - 1][i][2] = 0xFFu;
 			break;
 		case 0x01u:
-			data[LYVal - 1][i][0] = 0x77u;
-			data[LYVal - 1][i][1] = 0x77u;
-			data[LYVal - 1][i][2] = 0x77u;
-			break;
-		case 0x02u:
 			data[LYVal - 1][i][0] = 0xCCu;
 			data[LYVal - 1][i][1] = 0xCCu;
 			data[LYVal - 1][i][2] = 0xCCu;
+			break;
+		case 0x02u:
+			data[LYVal - 1][i][0] = 0x77u;
+			data[LYVal - 1][i][1] = 0x77u;
+			data[LYVal - 1][i][2] = 0x77u;
 			break;
 		case 0x03u:
 			data[LYVal - 1][i][0] = 0x00u;
