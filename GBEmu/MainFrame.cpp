@@ -9,6 +9,8 @@ BEGIN_EVENT_TABLE(MainFrame, wxFrame)
 	EVT_MENU(1, MainFrame::LoadState)
 	EVT_MENU(wxID_SAVE, MainFrame::SaveState)
 	EVT_MENU(2, MainFrame::ShowOptions)
+	EVT_MENU(3, MainFrame::SaveCartRam)
+	EVT_MENU(4, MainFrame::LoadCartRam)
 END_EVENT_TABLE()
 
 MainFrame::MainFrame(const wxChar* title, wxPoint pos, wxSize size, GB*& gb)
@@ -23,6 +25,8 @@ MainFrame::MainFrame(const wxChar* title, wxPoint pos, wxSize size, GB*& gb)
 	fileMenu->Append(wxID_EXIT, _T("&Exit"));
 	fileMenu->Append(wxID_SAVE, _T("&Save State"));
 	fileMenu->Append(1, _T("&Load State"));
+	fileMenu->Append(3, _T("Save Cart Ram"));
+	fileMenu->Append(4, _T("Load Cart Ram"));
 	menuBar->Append(fileMenu, _T("File"));
 	
 	toolMenu = new wxMenu();
@@ -89,4 +93,34 @@ void MainFrame::SaveState(wxCommandEvent&){
 
 void MainFrame::ShowOptions(wxCommandEvent&){
 	options->Show();
+}
+
+void MainFrame::LoadCartRam(wxCommandEvent&){
+	stateChangeRequested = true;
+	if (*g == nullptr)
+		return;
+	wxFileDialog* OpenDialog = new wxFileDialog(NULL, _T("Choose a RAM File"), _T(""), wxEmptyString, _T("*.*"), wxFD_OPEN);
+	if (OpenDialog->ShowModal() == wxID_OK){
+		try{
+			(*g)->LoadRam(OpenDialog->GetPath().c_str().AsChar());
+		}
+		catch (const char* ex){
+			wxMessageDialog dialog(NULL, ex, _T(""), wxICON_ERROR);
+			dialog.ShowModal();
+		}
+	}
+	OpenDialog->Close();
+	stateChangeRequested = false;
+}
+
+void MainFrame::SaveCartRam(wxCommandEvent&){
+	stateChangeRequested = true;
+	if (*g == nullptr)
+		return;
+	wxFileDialog* SaveDialog = new wxFileDialog(NULL, _T("Choose a RAM File"), _T(""), wxEmptyString, _T("*.*"), wxFD_SAVE);
+	if (SaveDialog->ShowModal() == wxID_OK){
+		(*g)->SaveRam(SaveDialog->GetPath().c_str().AsChar());
+	}
+	SaveDialog->Close();
+	stateChangeRequested = false;
 }

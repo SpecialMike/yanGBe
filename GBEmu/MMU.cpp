@@ -465,3 +465,11 @@ void MMU::LoadState(std::ifstream& fin){
 	fin.read((char*)&currentRAMBank, sizeof(currentRAMBank));
 	fin.read((char*)&currentROMBank, sizeof(currentROMBank));
 }
+
+void MMU::SaveRam(std::ofstream& fout){
+	fout.write((char*)eram, 0x1FFF * numRAMBanks);
+}
+
+void MMU::LoadRam(std::ifstream& fin){
+	fin.read((char*)eram, 0x1FFF * numRAMBanks);
+}

@@ -12,7 +12,9 @@ public:
 
 	void OnOpen(wxCommandEvent& event);
 	void OnExit(wxCommandEvent& event);
+	void LoadCartRam(wxCommandEvent& event);
 	void LoadState(wxCommandEvent& event);
+	void SaveCartRam(wxCommandEvent& event);
 	void SaveState(wxCommandEvent& event);
 	void ShowOptions(wxCommandEvent& event);
 

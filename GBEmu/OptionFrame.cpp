@@ -11,6 +11,7 @@ BEGIN_EVENT_TABLE(OptionFrame, wxFrame)
 	EVT_TOGGLEBUTTON(OptionFrame::btn_LEFT, OptionFrame::ButtonPressed)
 	EVT_TOGGLEBUTTON(OptionFrame::btn_RIGHT, OptionFrame::ButtonPressed)
 	EVT_KEY_DOWN(OptionFrame::KeyDown)
+	EVT_CLOSE(OptionFrame::OnClose)
 END_EVENT_TABLE()
 
 OptionFrame::OptionFrame(const wxSize& size) : wxFrame(NULL, wxID_PROPERTIES, _T("Options"), wxDefaultPosition, size)
@@ -84,4 +85,8 @@ void OptionFrame::KeyDown(wxKeyEvent& evt){
 
 	buttons[toggledButton]->SetValue(false);
 	text->SetLabelText("");
+}
+
+void OptionFrame::OnClose(wxCloseEvent&){
+	this->Hide();
 }

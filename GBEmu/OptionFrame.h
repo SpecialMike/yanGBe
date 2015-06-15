@@ -26,5 +26,7 @@ protected:
 private:
 	wxStaticText* text;
 
+	void OnClose(wxCloseEvent& event);
+
 };
 

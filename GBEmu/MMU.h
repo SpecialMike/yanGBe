@@ -17,10 +17,12 @@ public:
 
 	void IncrementDIV();
 	void IncrementLY();
+	void LoadRam(std::ifstream& fin);
 	void LoadState(std::ifstream& fin);
 	uint8 ReadByte(unsigned _int16 address);
 	uint8 ReadInstruction(unsigned _int16* PC);
 	uint8 ReadVram(unsigned _int16 address);
+	void SaveRam(std::ofstream& fout);
 	void SaveState(std::ofstream& fout);
 	void SetCPU(CPU* cpu);
 	void WriteByte(unsigned _int16 address, uint8 value);

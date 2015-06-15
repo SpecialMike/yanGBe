@@ -18,8 +18,10 @@ public:
 	void ButtonDown(int key);
 	void ButtonUp(int key);
 	void GetCartInfo();
+	void LoadRam(const char* filePath);
 	void LoadState(const char* filePath);
 	void OpenROM(const char* file);
+	void SaveRam(const char* filepath);
 	void SaveState(const char* filePath);
 	void SetOptionFrame(OptionFrame* op);
 	void UpdateToVBlank();
@@ -34,7 +36,8 @@ protected:
 
 private:
 	uint8* cartROM;
-	unsigned char signature[15];
+	unsigned char stateSignature[15];
+	unsigned char ramSignature[15];
 	char romName[15];
 
 };

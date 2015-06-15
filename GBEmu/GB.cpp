@@ -27,21 +27,37 @@ GB::GB(const char* filePath)
 
 	isProcessing = false;
 
-	signature[0] = 0x3A;
-	signature[1] = 0x43;
-	signature[2] = 0x29;
-	signature[3] = 0x32;
-	signature[4] = 0xB9;
-	signature[5] = 0x86;
-	signature[6] = 0x6A;
-	signature[7] = 0x61;
-	signature[8] = 0xE8;
-	signature[9] = 0x81;
-	signature[10] = 0x6E;
-	signature[11] = 0xB9;
-	signature[12] = 0x33;
-	signature[13] = 0xC4;
-	signature[14] = 0xED;
+	stateSignature[0] = 0x3A;
+	stateSignature[1] = 0x43;
+	stateSignature[2] = 0x29;
+	stateSignature[3] = 0x32;
+	stateSignature[4] = 0xB9;
+	stateSignature[5] = 0x86;
+	stateSignature[6] = 0x6A;
+	stateSignature[7] = 0x61;
+	stateSignature[8] = 0xE8;
+	stateSignature[9] = 0x81;
+	stateSignature[10] = 0x6E;
+	stateSignature[11] = 0xB9;
+	stateSignature[12] = 0x33;
+	stateSignature[13] = 0xC4;
+	stateSignature[14] = 0xED;
+
+	ramSignature[0] = 0xBF;
+	ramSignature[1] = 0x82;
+	ramSignature[2] = 0xD0;
+	ramSignature[3] = 0x52;
+	ramSignature[4] = 0x0F;
+	ramSignature[5] = 0x33;
+	ramSignature[6] = 0xDA;
+	ramSignature[7] = 0x45;
+	ramSignature[8] = 0x26;
+	ramSignature[9] = 0xD0;
+	ramSignature[10] = 0x8C;
+	ramSignature[11] = 0x14;
+	ramSignature[12] = 0x64;
+	ramSignature[13] = 0x1E;
+	ramSignature[14] = 0x3E;
 
 }
 
@@ -334,32 +350,6 @@ void GB::ButtonDown(int key){
 		m->column[0] &= 0xE;
 	else if (key == options->buttonAssignments[OptionFrame::btn_B])
 		m->column[0] &= 0xD;
-	//switch (key){
-	//case options->buttons[OptionFrame::btn_UP]:
-	//	m->column[1] &= 0xB;
-	//	break;
-	//case WXK_DOWN:
-	//	m->column[1] &= 0x7;
-	//	break;
-	//case WXK_LEFT:
-	//	m->column[1] &= 0xD;
-	//	break;
-	//case WXK_RIGHT:
-	//	m->column[1] &= 0xE;
-	//	break;
-	//case WXK_RETURN:
-	//	m->column[0] &= 0x7;
-	//	break;
-	//case '\\':
-	//	m->column[0] &= 0xB;
-	//	break;
-	//case 'A':
-	//	m->column[0] &= 0xE;
-	//	break;
-	//case 'B':
-	//	m->column[0] &= 0xD;
-	//	break;
-	//}
 }
 
 void GB::ButtonUp(int key){
@@ -379,33 +369,6 @@ void GB::ButtonUp(int key){
 		m->column[0] |= 0x1;
 	else if (key == options->buttonAssignments[OptionFrame::btn_B])
 		m->column[0] |= 0x2;
-
-	//switch (key){
-	//case WXK_UP:
-	//	m->column[1] |= 0x4;
-	//	break;
-	//case WXK_DOWN:
-	//	m->column[1] |= 0x8;
-	//	break;
-	//case WXK_LEFT:
-	//	m->column[1] |= 0x2;
-	//	break;
-	//case WXK_RIGHT:
-	//	m->column[1] |= 0x1;
-	//	break;
-	//case WXK_RETURN:
-	//	m->column[0] |= 0x8;
-	//	break;
-	//case '\\':
-	//	m->column[0] |= 0x4;
-	//	break;
-	//case 'A':
-	//	m->column[0] |= 0x1;
-	//	break;
-	//case 'B':
-	//	m->column[0] |= 0x2;
-	//	break;
-	//}
 }
 	
 
@@ -414,7 +377,7 @@ void GB::SaveState(const char* filePath){
 	fout.open(filePath, ios::binary);
 	char hash[15];
 	for (int i = 0; i < 15; i++){
-		hash[i] = signature[i] ^ romName[i];
+		hash[i] = stateSignature[i] ^ romName[i];
 	}
 	fout.write((char*)hash, 15);
 	m->SaveState(fout);
@@ -429,7 +392,7 @@ void GB::LoadState(const char* filePath){
 	fin.read((char*)testSignature, 15);
 	bool passed = true;
 	for (int i = 0; i < 15; i++){
-		if (testSignature[i] != (signature[i] ^ romName[i]) ){
+		if (testSignature[i] != (stateSignature[i] ^ romName[i]) ){
 			passed = false;
 		}
 	}
@@ -442,4 +405,31 @@ void GB::LoadState(const char* filePath){
 
 void GB::SetOptionFrame(OptionFrame* op){
 	options = op;
+}
+
+void GB::LoadRam(const char* filePath){
+	ifstream fin;
+	fin.open(filePath, ios::binary);
+	unsigned char testSignature[15] = { 0 };
+	fin.read((char*)testSignature, 15);
+	bool passed = true;
+	for (int i = 0; i < 15; i++){
+		if (testSignature[i] != (ramSignature[i] ^ romName[i])){
+			passed = false;
+		}
+	}
+	if (!passed)
+		throw "Error opening save file.";
+	m->LoadRam(fin);
+}
+
+void GB::SaveRam(const char* filePath){
+	ofstream fout;
+	fout.open(filePath, ios::binary);
+	char hash[15];
+	for (int i = 0; i < 15; i++){
+		hash[i] = ramSignature[i] ^ romName[i];
+	}
+	fout.write((char*)hash, 15);
+	m->SaveRam(fout);
 }
