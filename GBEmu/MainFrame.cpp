@@ -14,7 +14,7 @@ END_EVENT_TABLE()
 MainFrame::MainFrame(const wxChar* title, wxPoint pos, wxSize size, GB*& gb)
 	: wxFrame((wxFrame*)nullptr, -1, title, pos, size)
 {
-	options = new OptionFrame(wxSize(200,200));
+	options = new OptionFrame(wxSize(500, 200));
 
 	menuBar = new wxMenuBar();
 
@@ -43,6 +43,7 @@ void MainFrame::OnOpen(wxCommandEvent&){
 	if (OpenDialog->ShowModal() == wxID_OK){
 		try{
 			(*g) = new GB(OpenDialog->GetPath().c_str().AsChar());
+			(*g)->SetOptionFrame(options);
 		}
 		catch (const char* ex){
 			wxMessageDialog dialog(NULL, ex, _T(""), wxICON_ERROR);

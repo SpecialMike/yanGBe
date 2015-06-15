@@ -6,6 +6,7 @@
 #include "wx/image.h"
 #include "ImagePanel.h"
 #include "MainFrame.h"
+#include "OptionFrame.h"
 
 using namespace std;
 
@@ -32,7 +33,7 @@ bool MainApp::OnInit(){
 	frame->SetSizer(sizer);
 
 	frame->Show();
-	panel->SetFocus();
+	frame->SetFocus();
 
 	watch = new wxStopWatch();
 	
@@ -59,9 +60,13 @@ void MainApp::KeyUp(wxKeyEvent &evt){
 }
 
 void MainApp::KeyDown(wxKeyEvent &evt){
-	if (g == nullptr)
-		return;
-	g->ButtonDown(evt.GetKeyCode());
+	if (frame->options->IsActive())
+		frame->options->KeyDown(evt);
+	else{
+		if (g == nullptr)
+			return;
+		g->ButtonDown(evt.GetKeyCode());
+	}
 }
 
 void MainApp::Update(wxIdleEvent& event){

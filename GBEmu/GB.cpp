@@ -3,6 +3,7 @@
 #include "GB.h"
 #include <Windows.h>
 #include <wx/defs.h>
+#include "OptionFrame.h"
 
 using namespace std;
 
@@ -317,61 +318,94 @@ void GB::UpdateToVBlank(){
 }
 
 void GB::ButtonDown(int key){
-	switch (key){
-	case WXK_UP:
+	if (key == options->buttonAssignments[OptionFrame::btn_UP])
 		m->column[1] &= 0xB;
-		break;
-	case WXK_DOWN:
+	else if (key == options->buttonAssignments[OptionFrame::btn_DOWN])
 		m->column[1] &= 0x7;
-		break;
-	case WXK_LEFT:
+	else if (key == options->buttonAssignments[OptionFrame::btn_LEFT])
 		m->column[1] &= 0xD;
-		break;
-	case WXK_RIGHT:
+	else if (key == options->buttonAssignments[OptionFrame::btn_RIGHT])
 		m->column[1] &= 0xE;
-		break;
-	case WXK_RETURN:
+	else if (key == options->buttonAssignments[OptionFrame::btn_START])
 		m->column[0] &= 0x7;
-		break;
-	case '\\':
+	else if (key == options->buttonAssignments[OptionFrame::btn_SELECT])
 		m->column[0] &= 0xB;
-		break;
-	case 'A':
+	else if (key == options->buttonAssignments[OptionFrame::btn_A])
 		m->column[0] &= 0xE;
-		break;
-	case 'B':
+	else if (key == options->buttonAssignments[OptionFrame::btn_B])
 		m->column[0] &= 0xD;
-		break;
-	}
+	//switch (key){
+	//case options->buttons[OptionFrame::btn_UP]:
+	//	m->column[1] &= 0xB;
+	//	break;
+	//case WXK_DOWN:
+	//	m->column[1] &= 0x7;
+	//	break;
+	//case WXK_LEFT:
+	//	m->column[1] &= 0xD;
+	//	break;
+	//case WXK_RIGHT:
+	//	m->column[1] &= 0xE;
+	//	break;
+	//case WXK_RETURN:
+	//	m->column[0] &= 0x7;
+	//	break;
+	//case '\\':
+	//	m->column[0] &= 0xB;
+	//	break;
+	//case 'A':
+	//	m->column[0] &= 0xE;
+	//	break;
+	//case 'B':
+	//	m->column[0] &= 0xD;
+	//	break;
+	//}
 }
 
 void GB::ButtonUp(int key){
-	switch (key){
-	case WXK_UP:
+	if (key == options->buttonAssignments[OptionFrame::btn_UP])
 		m->column[1] |= 0x4;
-		break;
-	case WXK_DOWN:
+	else if (key == options->buttonAssignments[OptionFrame::btn_DOWN])
 		m->column[1] |= 0x8;
-		break;
-	case WXK_LEFT:
+	else if (key == options->buttonAssignments[OptionFrame::btn_LEFT])
 		m->column[1] |= 0x2;
-		break;
-	case WXK_RIGHT:
+	else if (key == options->buttonAssignments[OptionFrame::btn_RIGHT])
 		m->column[1] |= 0x1;
-		break;
-	case WXK_RETURN:
+	else if (key == options->buttonAssignments[OptionFrame::btn_START])
 		m->column[0] |= 0x8;
-		break;
-	case '\\':
+	else if (key == options->buttonAssignments[OptionFrame::btn_SELECT])
 		m->column[0] |= 0x4;
-		break;
-	case 'A':
+	else if (key == options->buttonAssignments[OptionFrame::btn_A])
 		m->column[0] |= 0x1;
-		break;
-	case 'B':
+	else if (key == options->buttonAssignments[OptionFrame::btn_B])
 		m->column[0] |= 0x2;
-		break;
-	}
+
+	//switch (key){
+	//case WXK_UP:
+	//	m->column[1] |= 0x4;
+	//	break;
+	//case WXK_DOWN:
+	//	m->column[1] |= 0x8;
+	//	break;
+	//case WXK_LEFT:
+	//	m->column[1] |= 0x2;
+	//	break;
+	//case WXK_RIGHT:
+	//	m->column[1] |= 0x1;
+	//	break;
+	//case WXK_RETURN:
+	//	m->column[0] |= 0x8;
+	//	break;
+	//case '\\':
+	//	m->column[0] |= 0x4;
+	//	break;
+	//case 'A':
+	//	m->column[0] |= 0x1;
+	//	break;
+	//case 'B':
+	//	m->column[0] |= 0x2;
+	//	break;
+	//}
 }
 	
 
@@ -404,4 +438,8 @@ void GB::LoadState(const char* filePath){
 	m->LoadState(fin);
 	c->LoadState(fin);
 	fin.close();
+}
+
+void GB::SetOptionFrame(OptionFrame* op){
+	options = op;
 }

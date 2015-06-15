@@ -6,6 +6,8 @@
 #include "GPU.h"
 #include "CPU.h"
 
+class OptionFrame;
+
 class GB
 {
 
@@ -19,12 +21,14 @@ public:
 	void LoadState(const char* filePath);
 	void OpenROM(const char* file);
 	void SaveState(const char* filePath);
+	void SetOptionFrame(OptionFrame* op);
 	void UpdateToVBlank();
 
 	bool isProcessing;
 	MMU* m;
 	GPU* g;
 	CPU* c;
+	OptionFrame* options;
 
 protected:
 

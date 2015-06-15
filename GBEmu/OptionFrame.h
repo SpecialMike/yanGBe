@@ -3,31 +3,27 @@
 #include "wx/tglbtn.h"
 #include <string>
 
-static const std::string buttons[8] = { "A", "B", "START", "SELECT", "UP", "DOWN", "LEFT", "RIGHT" };
 class OptionFrame :	public wxFrame
 {
 public:
+	enum buttonID{
+		btn_A, btn_B, btn_START, btn_SELECT, btn_UP, btn_DOWN, btn_LEFT, btn_RIGHT
+	};
+
 	OptionFrame(const wxSize& size);
 	~OptionFrame();
 
 	void ButtonPressed(wxCommandEvent& event);
+	void KeyDown(wxKeyEvent& event);
+
+	wxToggleButton* buttons[8];
+	int buttonAssignments[8];
+	wxPanel* panel;
 
 protected:
 	DECLARE_EVENT_TABLE()
 
 private:
-	enum buttonID{
-		btn_A, btn_B, btn_START, btn_SELECT, btn_UP, btn_DOWN, btn_LEFT, btn_RIGHT
-	};
-
-	wxToggleButton* A;
-	wxToggleButton* B;
-	wxToggleButton* START;
-	wxToggleButton* SELECT;
-	wxToggleButton* UP;
-	wxToggleButton* DOWN;
-	wxToggleButton* LEFT;
-	wxToggleButton* RIGHT;
 	wxStaticText* text;
 
 };
